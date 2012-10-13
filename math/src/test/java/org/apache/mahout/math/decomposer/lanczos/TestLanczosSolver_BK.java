@@ -97,7 +97,7 @@ public final class TestLanczosSolver_BK extends SolverTest {
     fw.close();
   }
   
-  @Test
+  //@Test
   public void testEigenvalueCheck() throws Exception {
     int numRows = 800;
     int numColumns = 500;
