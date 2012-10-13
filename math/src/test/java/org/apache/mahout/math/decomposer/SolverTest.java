@@ -29,6 +29,7 @@ import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorIterable;
 import org.apache.mahout.math.decomposer.lanczos.LanczosState;
 import org.apache.mahout.math.function.Functions;
+import org.apache.mahout.math.solver.EigenDecomposition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,9 +62,33 @@ public abstract class SolverTest extends MahoutTestCase {
           }
         }
       }
-      log.info("{}:{}", nonOrthogonals.size(), nonOrthogonals);
+	  log.info("{}:{}", nonOrthogonals.size(), nonOrthogonals);
     }
   }
+  
+  //BRK: this entire function is my addition....need to commit this??
+  public static void assertEigenvalues(LanczosState state, int desiredRank, boolean isSymmetric, double ERROR_TOLERANCE) {
+		Matrix corpus = (Matrix)state.getCorpus();
+		corpus = isSymmetric ? corpus : corpus.times(corpus.transpose());
+		
+		EigenDecomposition decomposition = new EigenDecomposition(corpus);
+		Vector eigenvalues = decomposition.getRealEigenvalues();
+
+		float fractionOfEigensExpectedGood = 0.6f;
+		for(int i = 0; i < fractionOfEigensExpectedGood * desiredRank; i++) {
+		double s = state.getSingularValue(desiredRank - i - 1);
+		s = isSymmetric ? s : s*s;
+		double e = eigenvalues.get(eigenvalues.size() - i - 1);
+		log.info(i + " : L = {}, E = {}", s, e);
+		assertTrue("Singular value differs from eigenvalue", Math.abs((s-e)/e) < ERROR_TOLERANCE);
+//    Vector v = state.getRightSingularVector(i);
+//    Vector v2 = decomposition.getV().viewColumn(eigenvalues.size() - i - 1).toVector();
+//    double error = 1 - Math.abs(v.dot(v2)/(v.norm(2) * v2.norm(2)));
+//    log.info("error: {}", error);
+//    assertTrue(i + ": 1 - cosAngle = " + error, error < ERROR_TOLERANCE);
+		}
+  }
+ 
 
   public static void assertOrthonormal(LanczosState state) {
     double errorMargin = 1.0e-5;
