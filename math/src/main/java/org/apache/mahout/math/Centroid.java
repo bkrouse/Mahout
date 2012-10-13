@@ -25,8 +25,8 @@ import org.apache.mahout.math.function.DoubleDoubleFunction;
  */
 public class Centroid extends WeightedVector {
     public Centroid(WeightedVector original) {
-        super(original.size(), original.getWeight(), original.getIndex());
-        delegate = original.like();
+        super(original.getWeight(), original.getIndex());
+        delegate = original.getVector().like();
         delegate.assign(original);
     }
 
@@ -67,7 +67,12 @@ public class Centroid extends WeightedVector {
         setWeight(totalWeight);
     }
 
-    /**
+  @Override
+  public Vector like() {
+    return new Centroid(getIndex(), getVector().like(), getWeight());
+  }
+
+  /**
      * Gets the index of this centroid.  Use getIndex instead to maintain standard names.
      */
     @Deprecated
@@ -79,6 +84,7 @@ public class Centroid extends WeightedVector {
         setWeight(getWeight() + 1);
     }
 
+    @Override
     public String toString() {
         return String.format("key = %d, weight = %.2f, vector = %s", getIndex(), getWeight(), delegate);
     }

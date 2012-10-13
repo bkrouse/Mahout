@@ -168,10 +168,8 @@ public class Open${keyTypeCap}${valueTypeCap}HashMap extends Abstract${keyTypeCa
   @Override
   public boolean forEachKey(${keyTypeCap}Procedure procedure) {
     for (int i = table.length; i-- > 0;) {
-      if (state[i] == FULL) {
-        if (!procedure.apply(table[i])) {
-          return false;
-        }
+      if (state[i] == FULL && !procedure.apply(table[i])) {
+        return false;
       }
     }
     return true;
@@ -188,10 +186,8 @@ public class Open${keyTypeCap}${valueTypeCap}HashMap extends Abstract${keyTypeCa
   @Override
   public boolean forEachPair(${keyTypeCap}${valueTypeCap}Procedure procedure) {
     for (int i = table.length; i-- > 0;) {
-      if (state[i] == FULL) {
-        if (!procedure.apply(table[i], values[i])) {
-          return false;
-        }
+      if (state[i] == FULL && !procedure.apply(table[i], values[i])) {
+        return false;
       }
     }
     return true;
@@ -494,7 +490,7 @@ public class Open${keyTypeCap}${valueTypeCap}HashMap extends Abstract${keyTypeCa
    *                                  maxLoadFactor)</tt>.
    */
   @Override
-  protected void setUp(int initialCapacity, double minLoadFactor, double maxLoadFactor) {
+  final protected void setUp(int initialCapacity, double minLoadFactor, double maxLoadFactor) {
     int capacity = initialCapacity;
     super.setUp(capacity, minLoadFactor, maxLoadFactor);
     capacity = nextPrime(capacity);
