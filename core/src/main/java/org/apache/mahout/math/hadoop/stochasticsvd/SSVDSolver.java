@@ -85,7 +85,7 @@ import com.google.common.collect.Lists;
  * 
  * </UL>
  */
-public class SSVDSolver {
+public final class SSVDSolver {
 
   private Vector svalues;
   private boolean computeU = true;
@@ -406,6 +406,11 @@ public class SSVDSolver {
          */
 
         Vector xi = SSVDHelper.loadAndSumUpVectors(pcaMeanPath, conf);
+        if (xi == null) {
+          throw new IOException(String.format("unable to load mean path xi from %s.",
+                                              pcaMeanPath.toString()));
+        }
+
         xisquaredlen = xi.dot(xi);
         Omega omega = new Omega(seed, k + p);
         Vector s_b0 = omega.mutlithreadedTRightMultiply(xi);
@@ -673,7 +678,7 @@ public class SSVDSolver {
     }
   }
 
-  static enum OutputScalingEnum {
+  enum OutputScalingEnum {
     NOSCALING, SIGMA, HALFSIGMA
   }
 }

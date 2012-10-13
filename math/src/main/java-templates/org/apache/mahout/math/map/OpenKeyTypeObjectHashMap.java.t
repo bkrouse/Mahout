@@ -158,10 +158,8 @@ public class Open${keyTypeCap}ObjectHashMap<T> extends Abstract${keyTypeCap}Obje
   @Override
   public boolean forEachKey(${keyTypeCap}Procedure procedure) {
     for (int i = table.length; i-- > 0;) {
-      if (state[i] == FULL) {
-        if (!procedure.apply(table[i])) {
-          return false;
-        }
+      if (state[i] == FULL && !procedure.apply(table[i])) {
+        return false;
       }
     }
     return true;
@@ -178,10 +176,8 @@ public class Open${keyTypeCap}ObjectHashMap<T> extends Abstract${keyTypeCap}Obje
   @Override
   public boolean forEachPair(${keyTypeCap}ObjectProcedure<T> procedure) {
     for (int i = table.length; i-- > 0;) {
-      if (state[i] == FULL) {
-        if (!procedure.apply(table[i], values[i])) {
-          return false;
-        }
+      if (state[i] == FULL && !procedure.apply(table[i], values[i])) {
+        return false;
       }
     }
     return true;
@@ -472,7 +468,7 @@ public class Open${keyTypeCap}ObjectHashMap<T> extends Abstract${keyTypeCap}Obje
    */
   @SuppressWarnings("unchecked")
   @Override
-  protected void setUp(int initialCapacity, double minLoadFactor, double maxLoadFactor) {
+  final protected void setUp(int initialCapacity, double minLoadFactor, double maxLoadFactor) {
     int capacity = initialCapacity;
     super.setUp(capacity, minLoadFactor, maxLoadFactor);
     capacity = nextPrime(capacity);
