@@ -25,3 +25,7 @@ foo
 math-tests/
 math/.settings/
 integration/.settings/
+*.props
+.pmd
+.ruleset
+.checkstyle
