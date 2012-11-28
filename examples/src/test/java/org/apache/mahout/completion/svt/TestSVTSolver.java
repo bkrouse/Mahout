@@ -46,7 +46,7 @@ import java.io.BufferedWriter;
 public final class TestSVTSolver extends SolverTest {
 	private static final Logger log = LoggerFactory.getLogger(TestSVTSolver.class);
 
-  @Test
+//  @Test
   public void testSVTSolver() throws Exception {
   	
   	//Create a random FULL matrix, for a given rank and size.  
