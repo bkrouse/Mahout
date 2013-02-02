@@ -18,9 +18,11 @@
 package org.apache.mahout.cf.taste.impl.common;
 
 import java.util.NoSuchElementException;
-import java.util.Random;
 
+import com.google.common.base.Preconditions;
+import org.apache.commons.math3.distribution.PascalDistribution;
 import org.apache.mahout.common.RandomUtils;
+import org.apache.mahout.common.RandomWrapper;
 
 /**
  * Wraps a {@link LongPrimitiveIterator} and returns only some subset of the elements that it would,
@@ -28,16 +30,21 @@ import org.apache.mahout.common.RandomUtils;
  */
 public final class SamplingLongPrimitiveIterator extends AbstractLongPrimitiveIterator {
   
-  private final Random random;
+  private final PascalDistribution geometricDistribution;
   private final LongPrimitiveIterator delegate;
-  private final double samplingRate;
   private long next;
   private boolean hasNext;
   
   public SamplingLongPrimitiveIterator(LongPrimitiveIterator delegate, double samplingRate) {
-    random = RandomUtils.getRandom();
+    this(RandomUtils.getRandom(), delegate, samplingRate);
+  }
+
+  public SamplingLongPrimitiveIterator(RandomWrapper random, LongPrimitiveIterator delegate, double samplingRate) {
+    Preconditions.checkNotNull(delegate);
+    Preconditions.checkArgument(samplingRate > 0.0 && samplingRate <= 1.0);
+    // Geometric distribution is special case of negative binomial (aka Pascal) with r=1:
+    geometricDistribution = new PascalDistribution(random.getRandomGenerator(), 1, samplingRate);
     this.delegate = delegate;
-    this.samplingRate = samplingRate;
     this.hasNext = true;
     doNext();
   }
@@ -66,14 +73,8 @@ public final class SamplingLongPrimitiveIterator extends AbstractLongPrimitiveIt
   }
   
   private void doNext() {
-    int toSkip = 0;
-    while (random.nextDouble() >= samplingRate) {
-      toSkip++;
-    }
-    // Really, would be nicer to select value from geometric distribution, for small values of samplingRate
-    if (toSkip > 0) {
-      delegate.skip(toSkip);
-    }
+    int toSkip = geometricDistribution.sample();
+    delegate.skip(toSkip);
     if (delegate.hasNext()) {
       next = delegate.next();
     } else {
@@ -91,7 +92,11 @@ public final class SamplingLongPrimitiveIterator extends AbstractLongPrimitiveIt
   
   @Override
   public void skip(int n) {
-    delegate.skip((int) (n / samplingRate)); // Kind of an approximation, but this is expected skip
+    int toSkip = 0;
+    for (int i = 0; i < n; i++) {
+      toSkip += geometricDistribution.sample();
+    }
+    delegate.skip(toSkip);
     if (delegate.hasNext()) {
       next = delegate.next();
     } else {

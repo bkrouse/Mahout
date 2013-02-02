@@ -68,6 +68,7 @@ import com.google.common.base.Preconditions;
  * recommendation quality much, but it potentially speeds up the clustering process dramatically.
  * </p>
  */
+@Deprecated
 public final class TreeClusteringRecommender2 extends AbstractRecommender implements ClusteringRecommender {
   
   private static final Logger log = LoggerFactory.getLogger(TreeClusteringRecommender2.class);
@@ -358,7 +359,7 @@ public final class TreeClusteringRecommender2 extends AbstractRecommender implem
       // catch that case here and put it back into our queue
       for (FastIDSet cluster : clusters) {
         double similarity = clusterSimilarity.getSimilarity(merged, cluster);
-        if (queue.size() > 0 && similarity > queue.get(queue.size() - 1).getSimilarity()) {
+        if (!queue.isEmpty() && similarity > queue.get(queue.size() - 1).getSimilarity()) {
           ListIterator<ClusterClusterPair> queueIterator = queue.listIterator();
           while (queueIterator.hasNext()) {
             if (similarity > queueIterator.next().getSimilarity()) {

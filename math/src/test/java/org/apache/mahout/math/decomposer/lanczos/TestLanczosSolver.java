@@ -51,7 +51,7 @@ public final class TestLanczosSolver extends SolverTest {
     for (int i = 0; i < fractionOfEigensExpectedGood * desiredRank; i++) {
       double s = state.getSingularValue(desiredRank - i - 1);
       double e = eigenvalues.get(eigenvalues.size() - i - 1);
-      log.info("{} : L = {}, E = {}", new Object[] {i, s, e});
+      log.info("{} : L = {}, E = {}", i, s, e);
       assertTrue("Singular value differs from eigenvalue", Math.abs((s-e)/e) < ERROR_TOLERANCE);
       Vector v = state.getRightSingularVector(i);
       Vector v2 = decomposition.getV().viewColumn(eigenvalues.size() - i - 1);
@@ -72,7 +72,6 @@ public final class TestLanczosSolver extends SolverTest {
     int rank = 50;
     LanczosState state = new LanczosState(corpus, rank, initialVector);
     long time = timeLanczos(corpus, state, rank, false);
-    assertTrue("Lanczos taking too long!  Are you in the debugger? :)", time < 10000);
     assertOrthonormal(state);
     for (int i = 0; i < rank/2; i++) {
       assertEigen(i, state.getRightSingularVector(i), corpus, ERROR_TOLERANCE, false);
@@ -89,7 +88,6 @@ public final class TestLanczosSolver extends SolverTest {
     int rank = 30;
     LanczosState state = new LanczosState(corpus, rank, initialVector);
     long time = timeLanczos(corpus, state, rank, true);
-    assertTrue("Lanczos taking too long!  Are you in the debugger? :)", time < 10000);
     //assertOrthonormal(state);
     //assertEigen(state, rank / 2, ERROR_TOLERANCE, true);
   }

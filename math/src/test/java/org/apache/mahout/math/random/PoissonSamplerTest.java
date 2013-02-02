@@ -17,36 +17,40 @@
 
 package org.apache.mahout.math.random;
 
-import org.apache.commons.math.distribution.PoissonDistribution;
-import org.apache.commons.math.distribution.PoissonDistributionImpl;
+import org.apache.commons.math3.distribution.IntegerDistribution;
+import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.mahout.common.RandomUtils;
 import org.apache.mahout.math.MahoutTestCase;
 import org.junit.Before;
 import org.junit.Test;
 
-public class PoissonSamplerTest extends MahoutTestCase {
-    @Override
-    @Before
-    public void setUp() {
-        RandomUtils.useTestSeed();
+public final class PoissonSamplerTest extends MahoutTestCase {
+
+  @Override
+  @Before
+  public void setUp() {
+    RandomUtils.useTestSeed();
+  }
+
+  @Test
+  public void testBasics() {
+    for (double alpha : new double[]{0.1, 1, 10, 100}) {
+      checkDistribution(new PoissonSampler(alpha), alpha);
+    }
+  }
+
+  private static void checkDistribution(Sampler<Double> pd, double alpha) {
+    int[] count = new int[(int) Math.max(10, 5 * alpha)];
+    for (int i = 0; i < 10000; i++) {
+      count[pd.sample().intValue()]++;
     }
 
-    @Test
-    public void testBasics() {
-        for (double alpha : new double[]{0.1, 1, 10, 100}) {
-            checkDistribution(new PoissonSampler(alpha), alpha);
-        }
+    IntegerDistribution ref = new PoissonDistribution(RandomUtils.getRandom().getRandomGenerator(),
+                                                      alpha,
+                                                      PoissonDistribution.DEFAULT_EPSILON,
+                                                      PoissonDistribution.DEFAULT_MAX_ITERATIONS);
+    for (int i = 0; i < count.length; i++) {
+      assertEquals(ref.probability(i), count[i] / 10000.0, 2.0e-2);
     }
-
-    private static void checkDistribution(PoissonSampler pd, double alpha) {
-        int[] count = new int[(int) Math.max(10, 5 * alpha)];
-        for (int i = 0; i < 10000; i++) {
-            count[pd.sample().intValue()]++;
-        }
-
-        PoissonDistribution ref = new PoissonDistributionImpl(alpha);
-        for (int i = 0; i < count.length; i++) {
-            assertEquals(ref.probability(i), count[i] / 10000.0, 2.0e-2);
-        }
-    }
+  }
 }
