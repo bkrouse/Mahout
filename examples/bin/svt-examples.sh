@@ -19,7 +19,7 @@
 #INTRO explanations
 
 function fileExists() {
-  if ([ "$MAHOUT_LOCAL" != "" ] && [ ! -e "$1" ]) || ([ "$MAHOUT_LOCAL" == "" ] && ! hadoop fs -test -e /user/$USER/$1); then
+  if ([ "$MAHOUT_LOCAL" != "" ] && [ ! -e "$1" ]) || ([ "$MAHOUT_LOCAL" == "" ] && ! $HADOOP_HOME/bin/hadoop fs -test -e /user/$USER/$1); then
     return 1 # file doesn't exist
   else
     return 0 # file exists
@@ -53,9 +53,11 @@ if [ "$0" != "$SCRIPT_PATH" ] && [ "$SCRIPT_PATH" != "" ]; then
   cd $SCRIPT_PATH
 fi
 START_PATH=`pwd`
+echo "START_PATH: $START_PATH"
 MAHOUT="../../bin/mahout"
 IN=$1
 OUT=$2
+
 
 algorithm=( csv netflix yahoo clean )
 if [ -n "$3" ]; then
@@ -76,16 +78,30 @@ if [ "x$alg" == "xcsv" ]; then
   # convert the csv to a DistributedMatrix
   MATRIX_IN="$OUT/csv/matrix-in"
   MATRIX_OUT="$OUT/csv/matrix-out"
+  CSV_IN="$IN/input.csv"
+  CSV_OUT="$IN/output.csv"
   CSV_TMP="$OUT/csv/tmp"
-  if ! fileExists "$MATRIX_IN/chunk-0"; then
+
+#original line had the /chunk-0...but trying without. I may need to revisit this with a large csv...not sure.
+#  if ! fileExists "$MATRIX_IN/chunk-0"; then
+  if ! fileExists "$MATRIX_IN"; then
     echo "Converting csv to DistrubutedMatrix format"
-    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixFromCsv --input $IN --output $MATRIX_IN 
+
+    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixFromCsv --input $CSV_IN --output $MATRIX_IN 
   fi
   # run the SVT
   echo "Running the matrix completion"
-  $MAHOUT org.apache.mahout.completion.svt.SVTDriver --input $MATRIX_IN --output $MATRIX_OUT --tempDir $CSV_TMP
-  removeFolder "$CSV_TMP"
+#fake this for now -- just copy matrix-in to matrix-out, and then lets try our conversion back to csv
+#  $MAHOUT org.apache.mahout.completion.svt.SVTDriver --input $MATRIX_IN --output $MATRIX_OUT --tempDir $CSV_TMP
+#  removeFolder "$CSV_TMP"
+  $HADOOP_HOME/bin/hadoop fs -cp $MATRIX_IN $MATRIX_OUT
+
   
+    echo "Converting output back to csv"
+    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixToCsv --input $MATRIX_IN --output $CSV_OUT
+
+
+
 #netflix
 elif [ "x$alg" == "xnetflix" ]; then
 
@@ -106,5 +122,4 @@ elif [ "x$alg" == "xclean" ]; then
 	removeFolder "$OUT"
   fi
 fi
-
 
