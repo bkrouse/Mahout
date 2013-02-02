@@ -219,6 +219,10 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 
   public DistributedRowMatrix transpose() throws IOException {
     Path outputPath = new Path(rowPath.getParent(), "transpose-" + (System.nanoTime() & 0xFF));
+    return transpose(outputPath);
+  }
+  
+  public DistributedRowMatrix transpose(Path outputPath) throws IOException {
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
     Configuration conf = TransposeJob.buildTransposeJobConf(initialConf, rowPath, outputPath, numRows);
     JobClient.runJob(new JobConf(conf));

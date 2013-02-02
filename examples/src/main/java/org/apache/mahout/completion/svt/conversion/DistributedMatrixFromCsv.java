@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 
 /**
  * Converts a CSV file into a SequenceFile format compatible with {@link DistributedMatrix}.
+ * Reads CSV off of local filesystem, and writes sequence file into HDFS
  */
 public final class DistributedMatrixFromCsv extends AbstractJob {
 

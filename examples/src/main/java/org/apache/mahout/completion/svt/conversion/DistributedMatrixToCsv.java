@@ -53,6 +53,8 @@ import java.util.zip.GZIPOutputStream;
 
 /**
  * Converts a SequenceFile format compatible with {@link DistributedMatrix} into a Dat file that can be imported into Matlab.
+ * Input file -- a local file system path to a csv.  
+ * Output file -- an HDFS path to a sequence file
  */
 public final class DistributedMatrixToCsv extends AbstractJob {
 
@@ -62,6 +64,8 @@ public final class DistributedMatrixToCsv extends AbstractJob {
   		DistributedMatrixToCsv.class);
   
   public static void main(String[] args) throws Exception {
+  	
+
     ToolRunner.run(new Configuration(), new DistributedMatrixToCsv(), args);
   }
 

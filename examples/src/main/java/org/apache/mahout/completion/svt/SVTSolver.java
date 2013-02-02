@@ -18,19 +18,32 @@
 package org.apache.mahout.completion.svt;
 
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.Writable;
 import org.apache.mahout.math.DenseMatrix;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.Matrix;
 import org.apache.mahout.math.MatrixSlice;
+import org.apache.mahout.math.NamedVector;
 import org.apache.mahout.math.SparseRowMatrix;
 import org.apache.mahout.math.SingularValueDecomposition;
 import org.apache.mahout.math.VectorIterable;
+import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.PlusMult;
+import org.apache.mahout.math.hadoop.DistributedRowMatrix;
+
 import static org.apache.mahout.math.function.Functions.*;
 import org.apache.mahout.math.Vector;
 //import org.apache.mahout.math.matrix.DoubleMatrix1D;
@@ -39,6 +52,8 @@ import org.apache.mahout.math.Vector;
 //import org.apache.mahout.math.matrix.linalg.EigenvalueDecomposition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.io.Closeables;
 
 /**
  * <p>SVT Solver</p>
@@ -98,6 +113,65 @@ public class SVTSolver {
   private final Map<TimingSection, Long> startTimes = new EnumMap<TimingSection, Long>(TimingSection.class);
   private final Map<TimingSection, Long> times = new EnumMap<TimingSection, Long>(TimingSection.class);
 
+  /**
+   * Run the solver to complete the matrix using SVT algorithm.  
+   * 
+   * @param inputPath the Path to the input matrix stored as a sequence file
+   * @param outputPath the Path to the output matrix stored as a sequence file
+   * @param workingPath a Path to a temporary working directory
+   * @param numRows the int number of rows 
+   * @param stepSize the delta in SVT algorithm
+   * @param tolerance the tolerance epsilon in SVT algorithm
+   * @param threshold the thresholding tao in SVT algorithm
+   * @param increment the increment l in SVT algorithm
+   * @param maxIter the maximum iterations k_max in SVT algorithm
+   * @param overwrite whether to overwrite the contents of the output directory or not
+   * @param increment 
+   */
+  
+  public void solve(Configuration conf,
+      Path inputPath,
+      Path outputPath,
+      Path workingPath,
+      int numRows,
+      int numCols,
+      double stepSize,
+      double tolerance,
+      double threshold,
+      int increment,
+      int maxIter,
+      boolean overwrite) throws IOException
+  {  	
+  	//check overwrite and output contents -- if something is there, delete or bail as appropriate
+  	
+  	//run algorithm to complete the matrix
+  	
+  	//optionally write the final U, S, V somewhere?  who knows, will I want to be able to inspect the intermediate ones too?
+  	//write another "SVT Results" data structure out for reports on processing time?
+  	
+  	//write out the final completed matrix
+  	
+  	//TEMP stub step: just transpose the matrix from inputPath into outputPath location
+    DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
+    matrix.setConf(conf);
+    
+    Path outputPathDir = new Path(outputPath.toString().concat("-dir"));
+    Path partPath = new Path(outputPathDir.toString().concat("/part-00000"));
+    DistributedRowMatrix matrixTransposed = matrix.transpose(outputPathDir);
+    
+    //rename the single file and delete the directory
+    FileSystem fs = outputPathDir.getFileSystem(conf);
+    fs.rename(partPath, outputPath);
+    fs.delete(outputPathDir,true);
+    
+
+    
+  	return;
+  }
+  
+
+  
+  /*
   public SVTSolver.Result solve(SparseRowMatrix P,
 			double tau,
 			double delta) {
@@ -110,6 +184,8 @@ public class SVTSolver {
   									double delta,
   									int maxiter,
   									double tol) {
+
+*/
 
 /*
   	int minDim = Math.min(P.numRows(), P.numCols());
@@ -162,10 +238,11 @@ public class SVTSolver {
   	result.V = V;
   	result.numiter = numiter;
   	return result;
-*/
+
 	  return null;
   }
-
+*/
+  
   private void startTime(TimingSection section) {
     startTimes.put(section, System.nanoTime());
   }
@@ -192,5 +269,15 @@ public class SVTSolver {
   private double estimateNorm(Matrix M, double tol) {
   	//matlab uses a power method here, until within tolerance.
   	return 0;
+  }
+  
+  /**
+   * exclude hidden (starting with dot) files
+   */
+  private static class ExcludeDotFiles implements PathFilter {
+    @Override
+    public boolean accept(Path file) {
+      return !file.getName().startsWith(".");
+    }
   }
 }
