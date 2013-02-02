@@ -148,12 +148,7 @@
     <!--  3rd-party -->
     <dependency>
       <groupId>org.apache.commons</groupId>
-      <artifactId>commons-math</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.uncommons.maths</groupId>
-      <artifactId>uncommons-maths</artifactId>
+      <artifactId>commons-math3</artifactId>
     </dependency>
 
     <dependency>

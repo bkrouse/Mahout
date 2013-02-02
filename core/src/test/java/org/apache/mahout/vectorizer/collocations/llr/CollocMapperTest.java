@@ -17,18 +17,11 @@
 
 package org.apache.mahout.vectorizer.collocations.llr;
 
-import java.io.Reader;
-import java.util.Collections;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Mapper.Context;
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.util.Version;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.common.StringTuple;
 import org.apache.mahout.vectorizer.collocations.llr.Gram.Type;
@@ -186,16 +179,16 @@ public final class CollocMapperTest extends MahoutTestCase {
   }
   
   /** A lucene 2.9 standard analyzer with no stopwords. */
-  public static class TestAnalyzer extends Analyzer {
+ /* public static class TestAnalyzer extends DefaultAnalyzer {
     private final Analyzer a;
     
     public TestAnalyzer() {
-      a = new StandardAnalyzer(Version.LUCENE_31, Collections.emptySet());
+      a = new StandardAnalyzer(Version.LUCENE_40, Collections.emptySet());
     }
     
     @Override
     public TokenStream tokenStream(String arg0, Reader arg1) {
       return a.tokenStream(arg0, arg1);
     }
-  }
+ }*/
 }

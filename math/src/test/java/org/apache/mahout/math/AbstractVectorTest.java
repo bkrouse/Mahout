@@ -137,6 +137,11 @@ public abstract class AbstractVectorTest<T extends Vector> extends MahoutTestCas
     assertEquals(dv1.viewPart(5, 10).zSum(), v1.viewPart(5, 10).zSum(), FUZZ);
 
     Vector v3 = v1.clone();
+
+    // must be the right type ... tricky to tell that in the face of type erasure
+    assertTrue(v0.getClass().isAssignableFrom(v3.getClass()));
+    assertTrue(v3.getClass().isAssignableFrom(v0.getClass()));
+
     assertEquals(0, v1.getDistanceSquared(v3), FUZZ);
     assertNotSame(v1, v3);
     v3.assign(0);
@@ -609,7 +614,7 @@ public abstract class AbstractVectorTest<T extends Vector> extends MahoutTestCas
 
   @Test
   public void testSmallDistances() {
-    for (double fuzz : new double[]{1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10}) {
+    for (double fuzz : new double[]{1.0e-5, 1.0e-6, 1.0e-7, 1.0e-8, 1.0e-9, 1.0e-10}) {
       MultiNormal x = new MultiNormal(fuzz, new ConstantVector(0, 20));
       for (int i = 0; i < 10000; i++) {
         final T v1 = vectorToTest(20);
