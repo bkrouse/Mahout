@@ -37,6 +37,8 @@ import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorIterable;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.decomposer.SolverTest;
+import org.apache.mahout.math.decomposer.lanczos.LanczosSolver;
+import org.apache.mahout.math.decomposer.lanczos.LanczosState;
 import org.apache.mahout.math.function.Functions;
 import org.junit.Test;
 
@@ -86,6 +88,49 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
     assertEquals(m, mtt, EPSILON);
   }
 
+  
+  @Test
+  public void testSumAbsJob() throws Exception {
+    Matrix m =
+        SolverTest.randomSequentialAccessSparseMatrix(100, 90, 50, 20, 1.0);
+    DistributedRowMatrix dm =
+        randomDistributedMatrix(100, 90, 50, 20, 1.0, false);
+
+    Vector expected = new DenseVector(50);
+    for (int i = 0; i < m.numRows(); i++) {
+      expected.assign(m.viewRow(i), Functions.PLUS_ABS);
+    }
+    Vector actual = dm.sumAbs();
+    assertEquals(0.0, expected.getDistanceSquared(actual), EPSILON);
+  }
+
+  
+  @Test
+  public void testNorm2Est() throws Exception {
+  	double ERROR_TOLERANCE = 0.01;
+  	int numRows = 100;
+  	int numCols = 50;
+  	
+    Matrix m =
+      SolverTest.randomSequentialAccessSparseMatrix(numRows, 90, numCols, 20, 1.0);
+	  DistributedRowMatrix dm =
+	      randomDistributedMatrix(numRows, 90, numCols, 20, 1.0, false);
+	
+	  //compute SVD of m -- and get top singular value
+	  int desiredRank = 2;
+    Vector initialVector = new DenseVector(numCols);
+    initialVector.assign(1.0 / Math.sqrt(numCols));
+    LanczosState state = new LanczosState(m, desiredRank, initialVector);
+    LanczosSolver solver = new LanczosSolver();
+    solver.solve(state, desiredRank, false);
+	  double expected = state.getSingularValue(1);
+	  
+	  double actual = dm.norm2est(ERROR_TOLERANCE);
+	  assertEquals(actual, expected, ERROR_TOLERANCE);
+  	
+  }
+  
+  
   @Test
   public void testMatrixColumnMeansJob() throws Exception {
     Matrix m =

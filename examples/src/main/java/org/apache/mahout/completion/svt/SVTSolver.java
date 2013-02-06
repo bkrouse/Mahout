@@ -190,6 +190,11 @@ public class SVTSolver {
 /*
   	int minDim = Math.min(P.numRows(), P.numCols());
   	int k0 = (int)Math.ceil(tau / (delta*estimateNorm(P, 1e-2)) );  	
+  		
+  		* equation (5.3)
+  		* I want to take the square of ||X||.  The norm of my matrix, squared.
+  		
+  	
   	SparseRowMatrix Y = P.times(k0*delta);
   	
   	int r=0, s=0;

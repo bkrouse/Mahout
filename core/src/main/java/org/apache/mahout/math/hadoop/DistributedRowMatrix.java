@@ -194,6 +194,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     out.setConf(conf);
     return out;
   }
+  
 
   public Vector columnMeans() throws IOException {
     return columnMeans("SequentialAccessSparseVector");
@@ -219,6 +220,70 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
       fs.delete(outputVectorTmpPath, true);
     }
     return mean;
+  }
+
+  /**
+	 * Calculate an estimate the 2-norm of a matrix.  This should be lighter weight than having to do a full SVD.
+	 * Algorithm converted from matlab code from here: http://chmielowski.eu/POLITECHNIKA/Dydaktyka/AUTOMATYKA/AutoLab/Matlab/TOOLBOX/MATLAB/SPARFUN/NORMEST.M
+	 * NOTE: can't commit this back to Apache until I determine if the license is OK...
+	 * 
+
+   * @return double
+   * @throws IOException
+   */
+  public double norm2est(double tolerance) throws IOException {
+  	Vector x = this.sumAbs(); //create a method that does sum(abs(S))'
+  	
+  	double norm2est = x.norm(2);
+  	x = x.divide(norm2est);
+  	
+  	double prev_est = 0;
+  	DistributedRowMatrix trans = this.transpose();
+  	while (Math.abs(norm2est - prev_est) > tolerance) {
+  		prev_est = norm2est;
+  		Vector Sx = this.times(x);
+  		norm2est = Sx.norm(2);
+  		x = trans.times(Sx);
+  		x = x.divide(x.norm(2));
+  	}
+  	
+    if (!keepTempFiles) {
+      FileSystem fs = outputTmpPath.getFileSystem(conf);
+      fs.delete(trans.rowPath, true);
+    }
+
+  	
+  	return norm2est;
+  }
+  
+  public double norm2est() throws IOException {
+  	double TOLERANCE = 1.0E-6; 
+
+  	return norm2est(TOLERANCE);
+  }
+  
+  
+  
+  /**
+   * Calculates sum(abs(S))'
+   * 
+   * @return Vector
+   * @throws IOException
+   * 
+   */
+  public Vector sumAbs() throws IOException {
+  	
+    Path outputTmpPath = new Path(outputTmpBasePath, new Path(Long.toString(System.nanoTime())));
+
+    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+    Vector sumAbs = SumAbsJob.run(initialConf, rowPath, outputTmpPath);
+
+    if (!keepTempFiles) {
+      FileSystem fs = outputTmpPath.getFileSystem(conf);
+      fs.delete(outputTmpPath, true);
+    }
+
+  	return sumAbs;
   }
 
   public DistributedRowMatrix transpose() throws IOException {

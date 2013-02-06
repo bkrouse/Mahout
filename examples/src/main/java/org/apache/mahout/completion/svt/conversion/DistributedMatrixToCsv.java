@@ -70,27 +70,33 @@ public final class DistributedMatrixToCsv extends AbstractJob {
   }
 
   public void createCsv(Path inputPath, Path outputPath) throws IOException {
-    OutputStream outStream = new FileOutputStream(new File(outputPath.toString()));
+
+  	FileSystem fs = outputPath.getFileSystem(getConf());
+  	fs.delete(outputPath);
+  	OutputStream outStream = new FileOutputStream(new File(outputPath.toString()));
     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
 
     try {
     	
       SequenceFileIterator<IntWritable,VectorWritable> seqIterator =
         new SequenceFileIterator<IntWritable,VectorWritable>(inputPath, true, getConf());
-
+      
       while(seqIterator.hasNext()) {
       	Pair<IntWritable,VectorWritable> record = seqIterator.next();
       	VectorWritable vw = record.getSecond();      	
-      	Vector vector = vw.get();
-      	Iterator<Vector.Element> recordIterator = vector.iterateNonZero();
-
-      	while (recordIterator.hasNext()) {
-          Vector.Element e = recordIterator.next();
-          writer.write(String.valueOf(e.get()));
-          if(recordIterator.hasNext())
-          	writer.write(DELIMITER);
-        }
       	
+      	Vector vector = vw.get(); 
+ 
+      	//this could be sparse...not sure it's efficient to access in this fashion, but oh well
+      	int numCols = vector.size();
+      	for ( int i = 0; i < numCols; i++ ) {
+      		Vector.Element e = vector.getElement(i);
+          writer.write(String.valueOf(e.get()));
+          if( i < (numCols-1) )
+          	writer.write(DELIMITER);
+
+      	}
+      	      	
       	if(seqIterator.hasNext())
       		writer.newLine();
       }
