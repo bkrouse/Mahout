@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.mahout.math.solver.EigenDecomposition;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,6 +41,7 @@ import org.apache.mahout.math.decomposer.SolverTest;
 import org.apache.mahout.math.decomposer.lanczos.LanczosSolver;
 import org.apache.mahout.math.decomposer.lanczos.LanczosState;
 import org.apache.mahout.math.function.Functions;
+import org.apache.mahout.math.hadoop.stochasticsvd.SSVDSolver;
 import org.junit.Test;
 
 import com.google.common.base.Function;
@@ -106,30 +108,72 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
 
   
   @Test
-  public void testNorm2Est() throws Exception {
-  	double ERROR_TOLERANCE = 0.01;
+  public void testNorm2EstSymmetric() throws Exception {
+  	double NORM2EST_TOLERANCE = 0.01;
+  	double ERROR_TOLERANCE = 0.5;
+
   	int numRows = 100;
   	int numCols = 50;
   	
     Matrix m =
-      SolverTest.randomSequentialAccessSparseMatrix(numRows, 90, numCols, 20, 1.0);
+      SolverTest.randomSequentialAccessSparseMatrix(numRows, 90, numCols, 20, 1.0 );
+	  m = m.transpose().times(m);
+
 	  DistributedRowMatrix dm =
-	      randomDistributedMatrix(numRows, 90, numCols, 20, 1.0, false);
-	
-	  //compute SVD of m -- and get top singular value
-	  int desiredRank = 2;
-    Vector initialVector = new DenseVector(numCols);
-    initialVector.assign(1.0 / Math.sqrt(numCols));
-    LanczosState state = new LanczosState(m, desiredRank, initialVector);
-    LanczosSolver solver = new LanczosSolver();
-    solver.solve(state, desiredRank, false);
-	  double expected = state.getSingularValue(1);
+	  	randomDistributedMatrix(numRows, 90, numCols, 20, 1.0, true);
+
 	  
-	  double actual = dm.norm2est(ERROR_TOLERANCE);
-	  assertEquals(actual, expected, ERROR_TOLERANCE);
+	  // trying out SSVD:
+
+//	  int r = 10000;
+//	  int k = 40;
+//	  int p = 15;
+//	  int reduceTasks = 10; //check shell scripts for better default
+//	  Path ssvdOutputTmpPath = new Path(dm.getOutputTempPath(), "ssvd");
+//    SSVDSolver solver = 
+//      new SSVDSolver(dm.getConf(),
+//                     new Path[] {dm.getRowPath()},
+//                     ssvdOutputTmpPath,
+//                     r,
+//                     k,
+//                     p,
+//                     reduceTasks);
+//
+//    solver.setMinSplitSize(-1);
+//    solver.setComputeU(true);
+//    solver.setComputeV(true);
+//    solver.setcUHalfSigma(false);
+//    solver.setcVHalfSigma(false);
+//    solver.setcUSigma(false);
+//    solver.setOuterBlockHeight(30000);
+//    solver.setAbtBlockHeight(200000);
+//    solver.setQ(2);
+//    solver.setBroadcast(true);
+//    solver.setOverwrite(true);
+//    solver.run();
+//    ssvdOutputTmpPath.getFileSystem(dm.getConf()).delete(ssvdOutputTmpPath, true);
+//    Vector svalues = solver.getSingularValues().viewPart(0, k);
+//    double expected = svalues.maxValue();
+	  
   	
-  }
-  
+//	  //compute SVD -- and get top singular value
+//	  int desiredRank = 40;
+//    Vector initialVector = new DenseVector(numRows);
+//    initialVector.assign(1.0 / Math.sqrt(numRows));
+//    LanczosState state = new LanczosState(dm, desiredRank, initialVector);
+//    LanczosSolver solver = new LanczosSolver();
+//    solver.solve(state, desiredRank, true);
+//	  double expected = state.getSingularValue(desiredRank - 1);	  //compute SVD of m -- and get top singular value
+	  
+    EigenDecomposition decomposition = new EigenDecomposition(m);
+    Vector eigenvalues = decomposition.getRealEigenvalues();
+    double expected = eigenvalues.get(eigenvalues.size() - 1);
+	  
+	  
+	  double actual = dm.norm2est(NORM2EST_TOLERANCE);
+	  assertEquals(actual, expected, ERROR_TOLERANCE);
+
+  }  
   
   @Test
   public void testMatrixColumnMeansJob() throws Exception {

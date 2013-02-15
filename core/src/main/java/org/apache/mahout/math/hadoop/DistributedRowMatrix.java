@@ -223,7 +223,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
   }
 
   /**
-	 * Calculate an estimate the 2-norm of a matrix.  This should be lighter weight than having to do a full SVD.
+	 * Calculate an estimate the 2-norm of a matrix.  This should be lighter weight than having to do a full SVD?  I'll need to run a series of tests to know...
 	 * Algorithm converted from matlab code from here: http://chmielowski.eu/POLITECHNIKA/Dydaktyka/AUTOMATYKA/AutoLab/Matlab/TOOLBOX/MATLAB/SPARFUN/NORMEST.M
 	 * NOTE: can't commit this back to Apache until I determine if the license is OK...
 	 * 

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -32,6 +33,9 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.util.ToolRunner;
+import org.apache.mahout.common.AbstractJob;
+import org.apache.mahout.common.commandline.DefaultOptionCreator;
 import org.apache.mahout.math.DenseMatrix;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.Matrix;
@@ -96,15 +100,80 @@ import com.google.common.io.Closeables;
  * </p>
 */
 
-public class SVTSolver {
+public class SVTSolver extends AbstractJob {
 
   private static final Logger log = LoggerFactory.getLogger(SVTSolver.class);
 
   private static final double NANOS_IN_MILLI = 1.0e6;
 
-  private static final int DEFAULT_MAXITER = 500;
-  private static final double DEFAULT_TOL = 1.0e-4;
-  private static final int R_INC = 4;  //make this larger for more accuracy
+	private static double CALC_DEFAULT_STEPSIZE = 0.05; //not the actual default -- trigger to calculate a recommended value
+	private static double DEFAULT_TOLERANCE = 1.0e-4;
+	private static double CALC_DEFAULT_THRESHOLD = -1; //not the actual default -- trigger to calculate a recommended value
+	private static int DEFAULT_INCREMENT = 4; //make this larger for more accuracy
+	private static int DEFAULT_MAXITER = 500;
+
+  @Override
+  public int run(String[] args) throws Exception {
+  	
+    addInputOption();
+    addOutputOption();
+    addOption("numRows", "nr", "Number of rows of the input matrix");
+    addOption("numCols", "nc", "Number of columns of the input matrix");
+    addOption("stepSize", "ss", "Step size - delta", Double.toString(CALC_DEFAULT_STEPSIZE)); 
+    addOption("tolerance", "err", "Tolerance - epsilon", Double.toString(DEFAULT_TOLERANCE)); 
+    addOption("threshold", "tao", "Threshold - tao", Double.toString(CALC_DEFAULT_THRESHOLD)); 
+    addOption("increment", "incr", "Increment - l", Integer.toString(DEFAULT_INCREMENT)); 
+    addOption("maxIter", "iter", "Maximum iteration count - k_max", Integer.toString(DEFAULT_MAXITER)); 
+    addOption(DefaultOptionCreator.overwriteOption().create());
+
+    Map<String, List<String>> pargs = parseArguments(args);
+    if (pargs == null) {
+      return -1;
+    }
+
+    int numRows = Integer.parseInt(getOption("numRows"));
+    int numCols = Integer.parseInt(getOption("numCols"));
+    double stepSize = Double.parseDouble(getOption("stepSize"));
+    stepSize = (stepSize==-1) ? calcDefaultStepSize(numRows, numCols) : stepSize;
+    double tolerance = Double.parseDouble(getOption("tolerance"));
+    double threshold = Double.parseDouble(getOption("threshold"));
+    threshold = (threshold==-1) ? calcDefaultThreshold(numRows, numCols) : threshold;
+    int increment = Integer.parseInt(getOption("increment"));
+    int maxIter = Integer.parseInt(getOption("maxIter"));
+    boolean overwrite =
+      pargs.containsKey(keyFor(DefaultOptionCreator.OVERWRITE_OPTION));
+
+    Configuration conf = getConf();
+    if (conf == null) {
+      throw new IOException("No Hadoop configuration present");
+    }
+
+    Path inputPath = getInputPath();
+    Path outputPath = getOutputPath();
+    Path tempPath = getTempPath();
+
+
+    solve(conf,
+                     inputPath,
+                     outputPath,
+                     new Path(tempPath, "svt-working"),
+                     numRows,
+                     numCols,
+                     stepSize,
+                     tolerance,
+                     threshold,
+                     increment,
+                     maxIter,
+                     overwrite);
+
+ 
+
+    return 0;
+  }
+
+  public static void main(String[] args) throws Exception {
+    ToolRunner.run(new SVTSolver(), args);
+  }
 
   public enum TimingSection {
     TBD
@@ -113,6 +182,21 @@ public class SVTSolver {
   private final Map<TimingSection, Long> startTimes = new EnumMap<TimingSection, Long>(TimingSection.class);
   private final Map<TimingSection, Long> times = new EnumMap<TimingSection, Long>(TimingSection.class);
 
+  
+  public void solve(Configuration conf,
+	      Path inputPath,
+	      Path outputPath,
+	      Path workingPath,
+	      int numRows,
+	      int numCols,
+	      boolean overwrite) throws IOException
+	  {  	
+  		solve(conf,
+          inputPath, outputPath, workingPath, numRows, numCols, calcDefaultStepSize(numRows, numCols), DEFAULT_TOLERANCE, calcDefaultThreshold(numRows, numCols),
+          DEFAULT_INCREMENT, DEFAULT_MAXITER, overwrite);
+
+	  }
+  
   /**
    * Run the solver to complete the matrix using SVT algorithm.  
    * 
@@ -142,34 +226,78 @@ public class SVTSolver {
       int maxIter,
       boolean overwrite) throws IOException
   {  	
+
+    FileSystem fs = outputPath.getFileSystem(conf);
+
   	//check overwrite and output contents -- if something is there, delete or bail as appropriate
+  	if(overwrite) {
+  		fs.delete(outputPath, true);
+  	}
   	
   	//run algorithm to complete the matrix
+    DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
+    matrix.setConf(conf);
+
+    double NORM2EST_TOLERANCE = 0.01;
+    double norm2est = matrix.norm2est(NORM2EST_TOLERANCE);
+  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2est) );  	
+
+  	//temp -- write some of my intermediate results out:
+    Path resultsFilePath = new Path(outputPath.toString().concat("-intermediates"));
+    FSDataOutputStream resultFile = fs.create(resultsFilePath, true);
+    resultFile.writeChars("k0=" + Integer.toString(k0) + "\n");
+    resultFile.close();
+
   	
   	//optionally write the final U, S, V somewhere?  who knows, will I want to be able to inspect the intermediate ones too?
   	//write another "SVT Results" data structure out for reports on processing time?
   	
   	//write out the final completed matrix
   	
-  	//TEMP stub step: just transpose the matrix from inputPath into outputPath location
-    DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
-    matrix.setConf(conf);
-    
+  	//TEMP stub step: just transpose the matrix from inputPath into outputPath location    
     Path outputPathDir = new Path(outputPath.toString().concat("-dir"));
     Path partPath = new Path(outputPathDir.toString().concat("/part-00000"));
     DistributedRowMatrix matrixTransposed = matrix.transpose(outputPathDir);
     
     //rename the single file and delete the directory
-    FileSystem fs = outputPathDir.getFileSystem(conf);
     fs.rename(partPath, outputPath);
     fs.delete(outputPathDir,true);
     
-
+    //clean up working path (e.g. "temp/svt-working")
+    fs.delete(workingPath, true);    
     
   	return;
   }
-  
 
+
+/* Comments on defaults for tau and delta from the matlab code:
+  
+   %{
+   if n1 and n2 are very different, then
+     tau should probably be bigger than 5*sqrt(n1*n2)
+
+   increase tau to increase accuracy; decrease it for speed
+
+   if the algorithm doesn't work well, try changing tau and delta
+     i.e. if it diverges, try a smaller delta (e.g. delta < 2 is a 
+     safe choice, but the algorithm may be slower than necessary).
+  %}
+*/	private double calcDefaultStepSize(int numRows,
+			int numCols) {
+		
+		int r = 10;
+		double df = r*(numRows+numCols-r);
+		double m = Math.min(5*df, Math.round(0.99*numRows*numCols));
+		double p = m / (numRows*numCols);
+		return 1.2 / p;
+	}
+
+  
+	private double calcDefaultThreshold(int numRows,
+			int numCols) {
+		
+		return 5*Math.sqrt(numRows*numCols);
+	}
   
   /*
   public SVTSolver.Result solve(SparseRowMatrix P,
