@@ -75,30 +75,39 @@ alg=${algorithm[$choice-1]}
 
 
 if [ "x$alg" == "xcsv" ]; then
-  # convert the csv to a DistributedMatrix
-  MATRIX_IN="$OUT/csv/matrix-in"
-  MATRIX_OUT="$OUT/csv/matrix-out"
-  CSV_IN="$IN/input.csv"
-  CSV_OUT="$IN/output.csv"
+  # convert the csvs to Sequence File and run SVTEvaluator
+  M_CSV="$IN/M.csv"
+  OMEGA_CSV="$IN/OmegaRowBasedSorted.csv"
+  M_SEQ="$OUT/csv/tmp/M.seq"
+  OMEGA_SEQ="$OUT/csv/tmp/OmegaRowBasedSorted.seq"
+  SVTOUTPUT_SEQ="$OUT/csv/SVTOutput.seq"
+  SVTOUTPUT_CSV="$IN/SVTOutput.csv"
   CSV_TMP="$OUT/csv/tmp"
 
-#original line had the /chunk-0...but trying without. I may need to revisit this with a large csv...not sure.
+#original line had the /chunk-0...but trying without. I may need to revisit this with a large csv...not sure. 
 #  if ! fileExists "$MATRIX_IN/chunk-0"; then
-  if ! fileExists "$MATRIX_IN"; then
-    echo "Converting csv to DistrubutedMatrix format"
+  if ! fileExists "$M_SEQ"; then
+    echo "Converting $M_CSV to DistrubutedMatrix format"
 
-    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixFromCsv --input $CSV_IN --output $MATRIX_IN 
+    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixFromCsv --input $M_CSV --output $M_SEQ
   fi
+
+  if ! fileExists "$OMEGA_SEQ"; then
+    echo "Converting $OMEGA_CSV to SequenceFile format"
+
+    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixFromCsv --input $OMEGA_CSV --output $OMEGA_SEQ
+ 
+  fi
+
   # run the SVT
-  echo "Running the matrix completion"
-#fake this for now -- just copy matrix-in to matrix-out, and then lets try our conversion back to csv
-#  $MAHOUT org.apache.mahout.completion.svt.SVTDriver --input $MATRIX_IN --output $MATRIX_OUT --tempDir $CSV_TMP
+  echo "Running SVT matrix completion"
+#  $MAHOUT org.apache.mahout.completion.svt.SVTEvaluator --input $M_SEQ --output $SVTOUTPUT_SEQ --tempDir $CSV_TMP --numRows 150 --numCols 300 --omega $OMEGA_SEQ
 #  removeFolder "$CSV_TMP"
-  $HADOOP_HOME/bin/hadoop fs -cp $MATRIX_IN $MATRIX_OUT
 
   
+  # commenting out for the moment..don't need this quite yet
     echo "Converting output back to csv"
-    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixToCsv --input $MATRIX_IN --output $CSV_OUT
+    $MAHOUT org.apache.mahout.completion.svt.conversion.DistributedMatrixToCsv --input $SVTOUTPUT_SEQ --output $SVTOUTPUT_CSV
 
 
 
@@ -122,4 +131,3 @@ elif [ "x$alg" == "xclean" ]; then
 	removeFolder "$OUT"
   fi
 fi
-
