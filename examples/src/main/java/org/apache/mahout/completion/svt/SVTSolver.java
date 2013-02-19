@@ -45,6 +45,8 @@ import org.apache.mahout.math.SparseRowMatrix;
 import org.apache.mahout.math.SingularValueDecomposition;
 import org.apache.mahout.math.VectorIterable;
 import org.apache.mahout.math.VectorWritable;
+import org.apache.mahout.math.decomposer.lanczos.LanczosSolver;
+import org.apache.mahout.math.decomposer.lanczos.LanczosState;
 import org.apache.mahout.math.function.PlusMult;
 import org.apache.mahout.math.hadoop.DistributedRowMatrix;
 
@@ -238,13 +240,14 @@ public class SVTSolver extends AbstractJob {
     DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
     matrix.setConf(conf);
 
-    double NORM2EST_TOLERANCE = 0.01;
-    double norm2est = matrix.norm2est(NORM2EST_TOLERANCE);
-  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2est) );  	
+    
+    double norm2 = norm2(matrix);
+  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
 
   	//temp -- write some of my intermediate results out:
     Path resultsFilePath = new Path(outputPath.toString().concat("-intermediates"));
     FSDataOutputStream resultFile = fs.create(resultsFilePath, true);
+    resultFile.writeChars("norm2=" + Double.toString(norm2) + "\n");
     resultFile.writeChars("k0=" + Integer.toString(k0) + "\n");
     resultFile.close();
 
@@ -268,6 +271,65 @@ public class SVTSolver extends AbstractJob {
     
   	return;
   }
+
+  
+  /*
+   * norm2 calculates the 2-norm, which is the largest singular value
+   */
+	private double norm2(DistributedRowMatrix matrix) throws IOException {
+		
+  //compute Lanczos SVD of matrix^2 (recommended rank is 2k+1 for k vectors) -- and get sqrt of top singular value
+  int desiredRank = 5; //should be 2k + 1....or maybe a convergence?
+  DistributedRowMatrix matrixSquared = matrix.times(matrix);
+  //TODO: can I do better with this initial vector?  See the unclear comments at the start of LanczosSolver class...
+  Vector initialVector = new DenseVector(matrixSquared.numRows());
+  initialVector.assign(1.0 / Math.sqrt(matrixSquared.numRows()));
+  LanczosState state = new LanczosState(matrixSquared, desiredRank, initialVector);
+  LanczosSolver solver = new LanczosSolver();
+  solver.solve(state, desiredRank, true);
+  double topSingular = state.getSingularValue(desiredRank - 1);	  //compute SVD of m -- and get top singular value		
+  double norm2 = Math.sqrt(topSingular);
+  
+	return norm2;
+		
+		
+// trying out SSVD:
+//  int r = 10000;
+//  int k = 40;
+//  int p = 15;
+//  int reduceTasks = 10; //check shell scripts for better default
+//  Path ssvdOutputTmpPath = new Path(dm.getOutputTempPath(), "ssvd");
+//  SSVDSolver solver = 
+//    new SSVDSolver(dm.getConf(),
+//                   new Path[] {dm.getRowPath()},
+//                   ssvdOutputTmpPath,
+//                   r,
+//                   k,
+//                   p,
+//                   reduceTasks);
+//
+//  solver.setMinSplitSize(-1);
+//  solver.setComputeU(true);
+//  solver.setComputeV(true);
+//  solver.setcUHalfSigma(false);
+//  solver.setcVHalfSigma(false);
+//  solver.setcUSigma(false);
+//  solver.setOuterBlockHeight(30000);
+//  solver.setAbtBlockHeight(200000);
+//  solver.setQ(2);
+//  solver.setBroadcast(true);
+//  solver.setOverwrite(true);
+//  solver.run();
+//  ssvdOutputTmpPath.getFileSystem(dm.getConf()).delete(ssvdOutputTmpPath, true);
+//  Vector svalues = solver.getSingularValues().viewPart(0, k);
+//  double expected = svalues.maxValue();
+
+//		//One way to do it...that is MIGHTY slow!  Oh well....
+//		double NORM2EST_TOLERANCE = 0.01;
+//    double norm2est = matrix.norm2est(NORM2EST_TOLERANCE);
+//
+//    return norm2est;
+	}
 
 
 /* Comments on defaults for tau and delta from the matlab code:

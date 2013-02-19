@@ -121,49 +121,6 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
 
 	  DistributedRowMatrix dm =
 	  	randomDistributedMatrix(numRows, 90, numCols, 20, 1.0, true);
-
-	  
-	  // trying out SSVD:
-
-//	  int r = 10000;
-//	  int k = 40;
-//	  int p = 15;
-//	  int reduceTasks = 10; //check shell scripts for better default
-//	  Path ssvdOutputTmpPath = new Path(dm.getOutputTempPath(), "ssvd");
-//    SSVDSolver solver = 
-//      new SSVDSolver(dm.getConf(),
-//                     new Path[] {dm.getRowPath()},
-//                     ssvdOutputTmpPath,
-//                     r,
-//                     k,
-//                     p,
-//                     reduceTasks);
-//
-//    solver.setMinSplitSize(-1);
-//    solver.setComputeU(true);
-//    solver.setComputeV(true);
-//    solver.setcUHalfSigma(false);
-//    solver.setcVHalfSigma(false);
-//    solver.setcUSigma(false);
-//    solver.setOuterBlockHeight(30000);
-//    solver.setAbtBlockHeight(200000);
-//    solver.setQ(2);
-//    solver.setBroadcast(true);
-//    solver.setOverwrite(true);
-//    solver.run();
-//    ssvdOutputTmpPath.getFileSystem(dm.getConf()).delete(ssvdOutputTmpPath, true);
-//    Vector svalues = solver.getSingularValues().viewPart(0, k);
-//    double expected = svalues.maxValue();
-	  
-  	
-//	  //compute SVD -- and get top singular value
-//	  int desiredRank = 40;
-//    Vector initialVector = new DenseVector(numRows);
-//    initialVector.assign(1.0 / Math.sqrt(numRows));
-//    LanczosState state = new LanczosState(dm, desiredRank, initialVector);
-//    LanczosSolver solver = new LanczosSolver();
-//    solver.solve(state, desiredRank, true);
-//	  double expected = state.getSingularValue(desiredRank - 1);	  //compute SVD of m -- and get top singular value
 	  
     EigenDecomposition decomposition = new EigenDecomposition(m);
     Vector eigenvalues = decomposition.getRealEigenvalues();
