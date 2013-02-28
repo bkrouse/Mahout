@@ -236,21 +236,90 @@ public class SVTSolver extends AbstractJob {
   		fs.delete(outputPath, true);
   	}
   	
+  	//path for capturing some intermediate results, for debugging purposes:
+    Path intermediatesPath = new Path(outputPath,"intermediates");
+
+  	
   	//run algorithm to complete the matrix
     DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
     matrix.setConf(conf);
 
     
+    //kicking step
     double norm2 = norm2(matrix);
   	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
-
-  	//temp -- write some of my intermediate results out:
-    Path resultsFilePath = new Path(outputPath.toString().concat("-intermediates"));
+  	DistributedRowMatrix Y = matrix.times(k0*stepSize);  //TODO: implement the matrix.times(double) method...and unit tests
+  	
+  	
+  	//log some variables to intermediate results file:
+    Path resultsFilePath = new Path(intermediatesPath.toString().concat("/miscvariables.txt"));
     FSDataOutputStream resultFile = fs.create(resultsFilePath, true);
     resultFile.writeChars("norm2=" + Double.toString(norm2) + "\n");
     resultFile.writeChars("k0=" + Integer.toString(k0) + "\n");
     resultFile.close();
 
+    //main SVT loop
+  	//TODO -- consider how much disk space I'm using with each loop...may need to clean up more as I go?
+    //TODO -- may also be an optimization to just do updates in place somehow?  dunno...
+    int r=0, s=0;
+    //declare X (it's what we return out of loop)
+    //declare U, S, V -- return these too perhaps?
+    for (int k=1; k<=maxIter; k++) {
+    	log.info("SVT - Iteration {}", k);
+    	s = r+1;
+    	
+    	//get the first s singular values/vectors of the matrix Y
+    	//check if the last singular value is <= tao
+    	//if its not, s = s + increment -- and do it again
+    	//TODO: currently hard-coding s (based on my input matrix) -- need to make this incremental.
+    	//			this will involve modifying Lanczos to (a) handle asym matrices, and (b) handle iterating up to a threshold
+    	//			(which internally means letting it save work between iterations)
+    	//			For now, I'll use SSVD (since it handles asym), but hard code s (since SSVD doesn't
+    	//			handle restarts.  
+    	//			I may need to interact with the community on this one.  But first, I want to get 
+    	//			through a skeleton of the entire SVT, and show some results to Dr Ye.
+    	//		  I may also need to do some studies into the accuracy of results, based on the rank
+    	//			that I am trying to achieve and based on how many internal iterations of Lanczos.
+    	//			Maybe while I'm at it, I can also try to make Lanczos faster.
+    	//			Note - I'll probably want to use DistributedLanczosSolver -- because it can be restarted on the HdfsLanczosState, and
+    	//			also because it ties to the EigenVerificationJob (i.e. cleansvd) at the end if it's run if I send in those params.
+    	//			I think I'll need to do this after settling on the right rank in each iteration -- or at least understand why it's needed --
+    	//			Since I need not only the singular values, but the vectors as well.  That too might need adjustment to support asymmetric?
+    	
+    	SVD svd;
+    	 while (true) {
+    		 s = 14;  //hard code this for now -- will ultimately increment this in steps, and pass in to computeSVD my saved work
+    		 svd = computeSVD(Y, s);
+    		 break;
+    	 }
+
+    	//for debugging: write SVD out to the file
+    	writeSVD(intermediatesPath, svd, k);
+    	
+    	//once I have enough singular values...set r=index of the
+    	//singular value just above tao...
+    	//subtract tao from all those singular values above r-index...
+    	//X = product of the thresholded singular values * singular vectors
+    	
+    	//if froeb-norm( Projection(X-M) )  /  froeb-norm( Projection(M) )  is <= tolerance we're done
+
+    	// fprintf('iteration %4d, rank is %2d, rel. residual is %.1e\n',k,r,norm(x-b)/normb);
+    	//	if (relRes < tol)
+    	//		break;
+    	//	if (relRes > 1e5)
+    	//		log.Error(Error!  Diverence!)
+    	//		break;
+
+
+    	//Y = Projection (Y + delta*(M-X))
+
+    }
+    
+//    return X; -- or rather I'll write X to filesystem
+
+    
+    
+    
   	
   	//optionally write the final U, S, V somewhere?  who knows, will I want to be able to inspect the intermediate ones too?
   	//write another "SVT Results" data structure out for reports on processing time?
@@ -273,27 +342,39 @@ public class SVTSolver extends AbstractJob {
   }
 
   
+  private SVD computeSVD(DistributedRowMatrix Y, int desiredRank) {
+  	//TODO: use SSVD to compute
+  	return null;
+  }
+  
+
+  private void writeSVD(Path intermediatesPath, SVD svd, int iterationNum)
+  {
+  	//TODO: write the SVD to disk
+  }
+  
   /*
    * norm2 calculates the 2-norm, which is the largest singular value
    */
 	private double norm2(DistributedRowMatrix matrix) throws IOException {
 		
-  //compute Lanczos SVD of matrix^2 (recommended rank is 2k+1 for k vectors) -- and get sqrt of top singular value
-  int desiredRank = 5; //should be 2k + 1....or maybe a convergence?
-  DistributedRowMatrix matrixSquared = matrix.times(matrix);
-  //TODO: can I do better with this initial vector?  See the unclear comments at the start of LanczosSolver class...
-  Vector initialVector = new DenseVector(matrixSquared.numRows());
-  initialVector.assign(1.0 / Math.sqrt(matrixSquared.numRows()));
-  LanczosState state = new LanczosState(matrixSquared, desiredRank, initialVector);
-  LanczosSolver solver = new LanczosSolver();
-  solver.solve(state, desiredRank, true);
-  double topSingular = state.getSingularValue(desiredRank - 1);	  //compute SVD of m -- and get top singular value		
-  double norm2 = Math.sqrt(topSingular);
-  
-	return norm2;
+		//TODO: come back and understand if I should be using DistributedLanczosSolver instead
+	  //compute Lanczos SVD of matrix^2 (recommended rank is 2k+1 for k vectors) -- and get sqrt of top singular value
+	  int desiredRank = 3; //should be 2k + 1....or maybe a convergence?  But in my manual testing, I found I needed about 10 for 0.01 accuracy
+	  DistributedRowMatrix matrixSquared = matrix.times(matrix);
+	  //TODO: can I do better with this initial vector?  See the unclear comments at the start of LanczosSolver class...
+	  Vector initialVector = new DenseVector(matrixSquared.numRows());
+	  initialVector.assign(1.0 / Math.sqrt(matrixSquared.numRows()));
+	  LanczosState state = new LanczosState(matrixSquared, desiredRank, initialVector);
+	  LanczosSolver solver = new LanczosSolver();
+	  solver.solve(state, desiredRank, true);
+	  double topSingular = state.getSingularValue(desiredRank - 1);	  //compute SVD of m -- and get top singular value		
+	  double norm2 = Math.sqrt(topSingular);
+	  
+		return norm2;
 		
 		
-// trying out SSVD:
+// should also try out SSVD:
 //  int r = 10000;
 //  int k = 40;
 //  int p = 15;
@@ -387,52 +468,54 @@ public class SVTSolver extends AbstractJob {
   	
   	SparseRowMatrix Y = P.times(k0*delta);
   	
-  	int r=0, s=0;
-  	Matrix U = null, V = null;
-  	List<Double> Sigma = null;
-  	for (int k=1; k<=maxiter; k++) {
-  		log.info("SVT - Iteration {}", k);  		
-  		s = r + 1;
-  		while (true) {
-  			//TODO: I think I need to tweak things here...since Lanczos is only working on a symmetric...I am 
-  			//only getting back the left singular vector and the singular values...which means I need to run it again on A'*A to get right singular vectors
-  			//But HOW does the Matlab version do it when the input matrix is not symmetric??
-  			//Also, I may not be getting back the TOP singular values...might need to get 2-3x as many, and then sort??
-  			//I probably need to "clean" the eigenvectors that come back too?  Seems that Lanczos should do this itself
-  	    U = new DenseMatrix(s, P.numCols());
-  	    Sigma = new ArrayList<Double>();
-  	    LanczosSolver solver = new LanczosSolver();
-  	    solver.solve(Y, s, U, Sigma, false);
-
-  			if( (Sigma.get(s)<=tau) || (s==minDim) ) break;
-  			s = Math.min(s + 5, minDim);
-  		}
   	
-  	//	sigma = diag(Sigma); r = sum(sigma > tau); -- setting rank to # of sing vals > tau
-  	//	U = U(:,1:r); V = V(:,1:r); sigma = sigma(1:r) - tau; Sigma = diag(sigma);
-
-  	//	//Returns x = projection of X on Omega
-  	//	x = XonOmega(U*diag(sigma), V, Omega) -- this is a separate MEX function
-  	
-  	//  relRes = frob_norm(x-b)/normb;
-  	//	fprintf('iteration %4d, rank is %2d, rel. residual is %.1e\n',k,r,norm(x-b)/normb);
-
-  	//	if (relRes < tol)
-  	//		break;
-  	//	if (relRes > 1e5)
-  	//		log.Error(Error!  Diverence!)
-  	//		break;
-  	
-  	//	y = y + delta*(b-x);
-  	//	updateSparse(Y,y,indx);  -- here's that separate MEX function again...
-  	}	
-  	
-  	SVTSolver.Result result = new SVTSolver.Result();
-  	result.U = U;
-  	result.S = S;
-  	result.V = V;
-  	result.numiter = numiter;
-  	return result;
+//  	int r=0, s=0;
+//  	Matrix U = null, V = null;
+//  	List<Double> Sigma = null;
+//  	for (int k=1; k<=maxiter; k++) {
+//  		log.info("SVT - Iteration {}", k);  		
+//  		s = r + 1;
+//  		while (true) {
+//  			//TODO: I think I need to tweak things here...since Lanczos is only working on a symmetric...I am 
+//  			//only getting back the left singular vector and the singular values...which means I need to run it again on A'*A to get right singular vectors
+//  			//But HOW does the Matlab version do it when the input matrix is not symmetric??
+//  			//Also, I may not be getting back the TOP singular values...might need to get 2-3x as many, and then sort??
+//  			//I probably need to "clean" the eigenvectors that come back too?  Seems that Lanczos should do this itself
+//  	    U = new DenseMatrix(s, P.numCols());
+//  	    Sigma = new ArrayList<Double>();
+//  	    LanczosSolver solver = new LanczosSolver();
+//  	    solver.solve(Y, s, U, Sigma, false);
+//
+//  			if( (Sigma.get(s)<=tau) || (s==minDim) ) break;
+//  			s = Math.min(s + 5, minDim);
+//  		}
+//  	
+//  	//	sigma = diag(Sigma); r = sum(sigma > tau); -- setting rank to # of sing vals > tau
+//  	//	U = U(:,1:r); V = V(:,1:r); sigma = sigma(1:r) - tau; Sigma = diag(sigma);
+//
+//  	//	//Returns x = projection of X on Omega
+//  	//	x = XonOmega(U*diag(sigma), V, Omega) -- this is a separate MEX function
+//  	
+//  	//  relRes = frob_norm(x-b)/normb;
+//  	//	fprintf('iteration %4d, rank is %2d, rel. residual is %.1e\n',k,r,norm(x-b)/normb);
+//
+//  	//	if (relRes < tol)
+//  	//		break;
+//  	//	if (relRes > 1e5)
+//  	//		log.Error(Error!  Diverence!)
+//  	//		break;
+//  	
+//  	//	y = y + delta*(b-x);
+//  	//	updateSparse(Y,y,indx);  -- here's that separate MEX function again...
+//  	}	
+//  	
+//  	SVTSolver.Result result = new SVTSolver.Result();
+//  	result.U = U;
+//  	result.S = S;
+//  	result.V = V;
+//  	result.numiter = numiter;
+//  	return result;
+    
 
 	  return null;
   }
@@ -453,26 +536,13 @@ public class SVTSolver extends AbstractJob {
     return ((double) times.get(section)) / NANOS_IN_MILLI;
   }
 
-  public class Result {
-  	public Matrix U = null;
-  	public Matrix S = null;
-  	public Matrix V = null;
-  	int numiter = 0;
+  private class SVD {
+  	public SVD() 
+  	{}
+  	
+  	public DistributedRowMatrix U = null;
+  	public DistributedRowMatrix S = null;
+  	public DistributedRowMatrix V = null;
   }
 
-	//TODO: implement estimateNorm()
-  private double estimateNorm(Matrix M, double tol) {
-  	//matlab uses a power method here, until within tolerance.
-  	return 0;
-  }
-  
-  /**
-   * exclude hidden (starting with dot) files
-   */
-  private static class ExcludeDotFiles implements PathFilter {
-    @Override
-    public boolean accept(Path file) {
-      return !file.getName().startsWith(".");
-    }
-  }
 }

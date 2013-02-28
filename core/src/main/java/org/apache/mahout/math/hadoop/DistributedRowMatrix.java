@@ -431,4 +431,23 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
       return "(" + row + ',' + col + "):" + val;
     }
   }
+
+	public DistributedRowMatrix times(double d) {
+//    if (numRows != other.numRows()) {
+//      throw new CardinalityException(numRows, other.numRows());
+//    }
+//    Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFF));
+//
+//    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+//    Configuration conf =
+//        MatrixMultiplicationJob.createMatrixMultiplyJobConf(initialConf,
+//                                                            rowPath,
+//                                                            other.rowPath,
+//                                                            outPath,
+//                                                            other.numCols);
+//    JobClient.runJob(new JobConf(conf));
+//    DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());
+//    out.setConf(conf);
+    return this;	
+	}
 }
