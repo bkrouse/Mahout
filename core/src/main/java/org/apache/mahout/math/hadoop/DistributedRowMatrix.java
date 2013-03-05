@@ -432,22 +432,48 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     }
   }
 
-	public DistributedRowMatrix times(double d) {
-//    if (numRows != other.numRows()) {
-//      throw new CardinalityException(numRows, other.numRows());
-//    }
-//    Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFF));
-//
-//    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
-//    Configuration conf =
-//        MatrixMultiplicationJob.createMatrixMultiplyJobConf(initialConf,
-//                                                            rowPath,
-//                                                            other.rowPath,
-//                                                            outPath,
-//                                                            other.numCols);
-//    JobClient.runJob(new JobConf(conf));
-//    DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());
-//    out.setConf(conf);
-    return this;	
+	public DistributedRowMatrix times(double d) throws IOException {
+    Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFF));
+
+    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+    Configuration conf =
+        MatrixScalarMultiplicationJob.createMatrixScalarMultiplyJobConf(initialConf,
+                                                            rowPath,
+                                                            d,
+                                                            outPath);
+    JobClient.runJob(new JobConf(conf));
+    DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
+    out.setConf(conf);
+    return out;	
+	}
+
+
+	/* Returns a new DistributedRowMatrix containing the first r columns of the current matrix.  Using 0-based indexes. */
+	//TODO: write some unit tests if I'm goign to keep this....
+	public DistributedRowMatrix viewPart(int rowIdxStart, int rowIdxEnd, int colIdxStart, int colIdxEnd) throws IOException {
+		//sanity check params:
+    if (rowIdxStart > rowIdxEnd || rowIdxStart < 0 || rowIdxEnd < 0 || rowIdxEnd >= this.numRows) {
+      throw new IOException("Invalid index for rowIdxStart (" + rowIdxStart + " or rowIdxEnd (" + rowIdxEnd + "), vs numRows (" + numRows + ")");
+    }
+    if (colIdxStart > colIdxEnd || colIdxStart < 0 || colIdxEnd < 0 || colIdxEnd >= this.numCols) {
+      throw new IOException("Invalid index for colIdxStart (" + colIdxStart + " or colIdxEnd (" + colIdxEnd + "), vs numCols (" + numCols + ")");
+    }
+
+		
+    Path outPath = new Path(outputTmpBasePath.getParent(), "viewPart-" + (System.nanoTime() & 0xFF));
+
+    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+    Configuration conf =
+        MatrixViewPartJob.createMatrixViewPartJobConf(initialConf,
+                                                            rowPath,
+                                                            rowIdxStart,
+                                                            rowIdxEnd,
+                                                            colIdxStart,
+                                                            colIdxEnd,
+                                                            outPath);
+    JobClient.runJob(new JobConf(conf));
+    DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, (rowIdxEnd-rowIdxStart), (colIdxEnd-colIdxStart));
+    out.setConf(conf);
+    return out;	
 	}
 }

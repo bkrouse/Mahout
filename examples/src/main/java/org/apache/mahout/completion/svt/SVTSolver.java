@@ -21,6 +21,7 @@ package org.apache.mahout.completion.svt;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -49,6 +50,7 @@ import org.apache.mahout.math.decomposer.lanczos.LanczosSolver;
 import org.apache.mahout.math.decomposer.lanczos.LanczosState;
 import org.apache.mahout.math.function.PlusMult;
 import org.apache.mahout.math.hadoop.DistributedRowMatrix;
+import org.apache.mahout.math.hadoop.stochasticsvd.SSVDSolver;
 
 import static org.apache.mahout.math.function.Functions.*;
 import org.apache.mahout.math.Vector;
@@ -248,7 +250,7 @@ public class SVTSolver extends AbstractJob {
     //kicking step
     double norm2 = norm2(matrix);
   	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
-  	DistributedRowMatrix Y = matrix.times(k0*stepSize);  //TODO: implement the matrix.times(double) method...and unit tests
+  	DistributedRowMatrix Y = matrix.times(k0*stepSize);  
   	
   	
   	//log some variables to intermediate results file:
@@ -287,19 +289,37 @@ public class SVTSolver extends AbstractJob {
     	//			Since I need not only the singular values, but the vectors as well.  That too might need adjustment to support asymmetric?
     	
     	SVD svd;
-    	 while (true) {
+    	while (true) {
     		 s = 14;  //hard code this for now -- will ultimately increment this in steps, and pass in to computeSVD my saved work
-    		 svd = computeSVD(Y, s);
+    		 svd = computeSVD(conf, workingPath, k, Y, s);
     		 break;
-    	 }
+    	}
 
-    	//for debugging: write SVD out to the file
-    	writeSVD(intermediatesPath, svd, k);
     	
-    	//once I have enough singular values...set r=index of the
-    	//singular value just above tao...
-    	//subtract tao from all those singular values above r-index...
+    	//set r to the index of the smallest singular value greater than tao
+    	while(r < svd.S.size()) {
+    		if(svd.S.get(r) <= threshold) {
+    			if (r > 0)  { r--; }  //TODO: what to do if threshold is greater than even the first singular value?  right now, just making sure I don't go out of bounds
+    			break;
+    		}
+    		r++;
+    	}
+    	 
+
+    	//truncate U and V, up to r vectors each (all rows, up to r columns)
+    	//truncate S up to r values, and subtract threshold from each value
+    	//TODO: make the truncate and threshold more efficient -- currently makes a copy of both matrices
+    	//SSVD returns U and V as distributed matrix format -- so it's not as easy to take the first r vectors.
+    	//Lanczos returns the singular vectors as vectors -- so it's easy peasy to take the first r.
+    	//ultimately, I know I will need to use Lanczos -- for the iterative approach
+    	//but in my current workaround that uses SSVD, I need to just quickly pull out the first r vectors
+    	//so until I switch to Lanczos...we'll just hack something together that works, even if it's a bit expensive
+    	svd.truncateAndThreshold(r, threshold);
+    	
     	//X = product of the thresholded singular values * singular vectors
+    	
+    	break;
+    	 
     	
     	//if froeb-norm( Projection(X-M) )  /  froeb-norm( Projection(M) )  is <= tolerance we're done
 
@@ -336,15 +356,51 @@ public class SVTSolver extends AbstractJob {
     fs.delete(outputPathDir,true);
     
     //clean up working path (e.g. "temp/svt-working")
-    fs.delete(workingPath, true);    
+//    fs.delete(workingPath, true);    
     
   	return;
   }
 
   
-  private SVD computeSVD(DistributedRowMatrix Y, int desiredRank) {
-  	//TODO: use SSVD to compute
-  	return null;
+  private SVD computeSVD(Configuration conf, Path workingPath, int svtIteration, DistributedRowMatrix Y, int desiredRank) throws IOException {
+  	//use SSVD to compute for now -- eventually switch to Lanczos when it can (a) handle asym, (b) iterate up to a threshold
+	  int r = 10000;
+	  int k = desiredRank;
+	  int p = 15;
+	  int reduceTasks = 10; //check shell scripts for better default
+	  Path ssvdOutputTmpPath = new Path(workingPath, "ssvd/" + Integer.toString(svtIteration));
+	  SSVDSolver solver = 
+	    new SSVDSolver(conf,
+	                   new Path[] {Y.getRowPath()},
+	                   ssvdOutputTmpPath,
+	                   r,
+	                   k,
+	                   p,
+	                   reduceTasks);
+	
+	  solver.setMinSplitSize(-1);
+	  solver.setComputeU(true);
+	  solver.setComputeV(true);
+	  solver.setcUHalfSigma(false);
+	  solver.setcVHalfSigma(false);
+	  solver.setcUSigma(false);
+	  solver.setOuterBlockHeight(30000);
+	  solver.setAbtBlockHeight(200000);
+	  solver.setQ(2);
+	  solver.setBroadcast(false);  //BK: setting this to true seemed to be causing an error in BtJob
+	  solver.setOverwrite(true);
+	  solver.run();
+
+	  SVD svd = new SVD();
+	  svd.U = new DistributedRowMatrix(new Path(solver.getUPath()), workingPath, Y.numRows(), k);
+    svd.U.setConf(conf);
+    svd.S = solver.getSingularValues().viewPart(0, k);
+	  svd.V = new DistributedRowMatrix(new Path(solver.getVPath()), workingPath, k, Y.numCols());
+    svd.V.setConf(conf);
+
+    
+    
+  	return svd;
   }
   
 
@@ -373,38 +429,6 @@ public class SVTSolver extends AbstractJob {
 	  
 		return norm2;
 		
-		
-// should also try out SSVD:
-//  int r = 10000;
-//  int k = 40;
-//  int p = 15;
-//  int reduceTasks = 10; //check shell scripts for better default
-//  Path ssvdOutputTmpPath = new Path(dm.getOutputTempPath(), "ssvd");
-//  SSVDSolver solver = 
-//    new SSVDSolver(dm.getConf(),
-//                   new Path[] {dm.getRowPath()},
-//                   ssvdOutputTmpPath,
-//                   r,
-//                   k,
-//                   p,
-//                   reduceTasks);
-//
-//  solver.setMinSplitSize(-1);
-//  solver.setComputeU(true);
-//  solver.setComputeV(true);
-//  solver.setcUHalfSigma(false);
-//  solver.setcVHalfSigma(false);
-//  solver.setcUSigma(false);
-//  solver.setOuterBlockHeight(30000);
-//  solver.setAbtBlockHeight(200000);
-//  solver.setQ(2);
-//  solver.setBroadcast(true);
-//  solver.setOverwrite(true);
-//  solver.run();
-//  ssvdOutputTmpPath.getFileSystem(dm.getConf()).delete(ssvdOutputTmpPath, true);
-//  Vector svalues = solver.getSingularValues().viewPart(0, k);
-//  double expected = svalues.maxValue();
-
 //		//One way to do it...that is MIGHTY slow!  Oh well....
 //		double NORM2EST_TOLERANCE = 0.01;
 //    double norm2est = matrix.norm2est(NORM2EST_TOLERANCE);
@@ -540,8 +564,15 @@ public class SVTSolver extends AbstractJob {
   	public SVD() 
   	{}
   	
-  	public DistributedRowMatrix U = null;
-  	public DistributedRowMatrix S = null;
+  	public void truncateAndThreshold(int r, double threshold) {
+    	U = U.viewColumns(r);
+    	V = V.viewColumns(r);
+    	S = S.viewPart(0, r).plus(threshold*-1);
+			
+		}
+
+		public DistributedRowMatrix U = null;
+  	public Vector S = null;
   	public DistributedRowMatrix V = null;
   }
 

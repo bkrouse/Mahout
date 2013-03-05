@@ -20,6 +20,7 @@ package org.apache.mahout.math.hadoop;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.mahout.math.solver.EigenDecomposition;
 import org.apache.hadoop.conf.Configuration;
@@ -29,11 +30,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.mahout.clustering.ClusteringTestUtils;
 import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.MahoutTestCase;
+import org.apache.mahout.common.RandomUtils;
 import org.apache.mahout.common.iterator.sequencefile.PathFilters;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.Matrix;
 import org.apache.mahout.math.MatrixSlice;
 import org.apache.mahout.math.RandomAccessSparseVector;
+import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorIterable;
 import org.apache.mahout.math.VectorWritable;
@@ -92,6 +95,23 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
 
   
   @Test
+  public void testMatrixScalarMultiply() throws Exception {
+    Random r = RandomUtils.getRandom();
+    double scalar = r.nextGaussian();
+  	
+    Matrix m =
+        SolverTest.randomSequentialAccessSparseMatrix(100, 90, 50, 20, 1.0);
+    Matrix expected = m.times(scalar);
+
+    DistributedRowMatrix dm =
+        randomDistributedMatrix(100, 90, 50, 20, 1.0, false);
+    DistributedRowMatrix product = dm.times(scalar);
+        
+    assertEquals(expected, product, EPSILON);
+  }
+
+  
+//  @Test
   public void testSumAbsJob() throws Exception {
     Matrix m =
         SolverTest.randomSequentialAccessSparseMatrix(100, 90, 50, 20, 1.0);
