@@ -18,12 +18,14 @@
 package org.apache.mahout.completion.svt;
 
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -37,11 +39,13 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.common.commandline.DefaultOptionCreator;
+import org.apache.mahout.common.iterator.FileLineIterable;
 import org.apache.mahout.math.DenseMatrix;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.Matrix;
 import org.apache.mahout.math.MatrixSlice;
 import org.apache.mahout.math.NamedVector;
+import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.SparseRowMatrix;
 import org.apache.mahout.math.SingularValueDecomposition;
 import org.apache.mahout.math.VectorIterable;
@@ -230,7 +234,7 @@ public class SVTSolver extends AbstractJob {
       int maxIter,
       boolean overwrite) throws IOException
   {  	
-
+  	
     FileSystem fs = outputPath.getFileSystem(conf);
 
   	//check overwrite and output contents -- if something is there, delete or bail as appropriate
@@ -306,17 +310,34 @@ public class SVTSolver extends AbstractJob {
     	}
     	 
 
-    	//truncate U and V, up to r vectors each (all rows, up to r columns)
-    	//truncate S up to r values, and subtract threshold from each value
+    	//truncate U and V, up to r+1th (i.e. vector whose index is r) vectors each (all rows, up to r+1 columns)
+    	//truncate S up to r+1 values, and subtract threshold from each value
     	//TODO: make the truncate and threshold more efficient -- currently makes a copy of both matrices
-    	//SSVD returns U and V as distributed matrix format -- so it's not as easy to take the first r vectors.
-    	//Lanczos returns the singular vectors as vectors -- so it's easy peasy to take the first r.
+    	//SSVD returns U and V as distributed matrix format -- so it's not as easy to take the first r+1 vectors.
+    	//Lanczos returns the singular vectors as vectors -- so it's easy peasy to take the first r+1.
     	//ultimately, I know I will need to use Lanczos -- for the iterative approach
-    	//but in my current workaround that uses SSVD, I need to just quickly pull out the first r vectors
+    	//but in my current workaround that uses SSVD, I need to just quickly pull out the first r+1 vectors
     	//so until I switch to Lanczos...we'll just hack something together that works, even if it's a bit expensive
-    	svd.truncateAndThreshold(r, threshold);
-    	
-    	//X = product of the thresholded singular values * singular vectors
+    	svd.truncateAndThreshold(r, threshold);    	
+
+    	//calculate X = U'*S*V -- with truncated singular values
+    	//currently assuming I can just hard-code 1 partition coming back....that may change with larger data sets?  Dunno
+    	//exactly what SSVD will return in those cases...
+    	//not sure why it matters...but I was getting weird results until I setConf(conf) on each matrix.
+    	DistributedRowMatrix DiagS = svd.getDiagS(conf);
+      DiagS.setConf(conf);    	
+    	DistributedRowMatrix Utrans = svd.U.transpose(1); 
+    	Utrans.setConf(conf);
+    	DistributedRowMatrix Vtrans = svd.V.transpose(1);  
+    	Vtrans.setConf(conf);
+    	DistributedRowMatrix SV = DiagS.times(Vtrans); 
+    	SV.setConf(conf);
+    	DistributedRowMatrix X = Utrans.times(SV); 
+    	X.setConf(conf);
+    	  	
+    	//take projection of X on Omega
+    	//lets do this by only taking the elements of X where input matrix is non-zero -- vs requiring end user to input Omega
+    	DistributedRowMatrix XonOmega = X.projection(matrix);
     	
     	break;
     	 
@@ -345,6 +366,8 @@ public class SVTSolver extends AbstractJob {
   	//write another "SVT Results" data structure out for reports on processing time?
   	
   	//write out the final completed matrix
+    //ACTUALLY...I thnk it's better to write out U, S, and V from my last iteration -- its what the algorithm is doing
+    //after all, and it presents more info back -- vs losing that visibility by multiplying things out
   	
   	//TEMP stub step: just transpose the matrix from inputPath into outputPath location    
     Path outputPathDir = new Path(outputPath.toString().concat("-dir"));
@@ -395,7 +418,7 @@ public class SVTSolver extends AbstractJob {
 	  svd.U = new DistributedRowMatrix(new Path(solver.getUPath()), workingPath, Y.numRows(), k);
     svd.U.setConf(conf);
     svd.S = solver.getSingularValues().viewPart(0, k);
-	  svd.V = new DistributedRowMatrix(new Path(solver.getVPath()), workingPath, k, Y.numCols());
+	  svd.V = new DistributedRowMatrix(new Path(solver.getVPath()), workingPath, Y.numCols(), k);
     svd.V.setConf(conf);
 
     
@@ -564,13 +587,48 @@ public class SVTSolver extends AbstractJob {
   	public SVD() 
   	{}
   	
-  	public void truncateAndThreshold(int r, double threshold) {
-    	U = U.viewColumns(r);
-    	V = V.viewColumns(r);
-    	S = S.viewPart(0, r).plus(threshold*-1);
+  	public void truncateAndThreshold(int r, double threshold) throws IOException {
+    	U = U.viewColumns(0, r); //in terms of indexes -- start index of 0, end index of r
+    	V = V.viewColumns(0, r);
+    	S = S.viewPart(0, r+1).plus(threshold*-1);  //viewPart(startIndex, length) -- since r is end index, want r+1 as length
 			
 		}
 
+  	//TODO: this is a hack...1) Can't call it twice (will blow up), 2) do I really need to do this, or can I just compute X smarter?
+  	//But still....lets just get it working please
+  	public DistributedRowMatrix getDiagS(Configuration conf) throws IOException {
+  		
+  		//create a DistributedRowMatrix version of Diag(S)
+  		Path diagSPath = new Path(U.getRowPath().getParent(), "DiagS");
+  		
+      FileSystem fs = FileSystem.get(diagSPath.toUri(), conf);
+      SequenceFile.Writer writer = null;
+      try {  	
+        writer = new SequenceFile.Writer(fs,
+            conf,
+            diagSPath,
+            IntWritable.class,
+            VectorWritable.class);
+        
+        for (int row=0; row < S.size(); row++) {
+  	      Vector v = new RandomAccessSparseVector(S.size());
+  	      v.setQuick(row, S.getQuick(row));
+  	      writer.append(new IntWritable(row), new VectorWritable(v));     
+        }
+      } finally {
+      	Closeables.closeQuietly(writer);
+      }
+  		
+  		DistributedRowMatrix diagS = new DistributedRowMatrix(diagSPath,
+                              U.getOutputTempPath(),
+                              S.size(),
+                              S.size());
+  		diagS.setConf(conf);
+  		
+  		return diagS;
+  		
+  	}
+  	
 		public DistributedRowMatrix U = null;
   	public Vector S = null;
   	public DistributedRowMatrix V = null;

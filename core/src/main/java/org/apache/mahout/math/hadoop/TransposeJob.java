@@ -82,9 +82,17 @@ public class TransposeJob extends AbstractJob {
   }
 
   public static Configuration buildTransposeJobConf(Configuration initialConf,
+      Path matrixInputPath,
+      Path matrixOutputPath,
+      int numInputRows) throws IOException {
+  	return buildTransposeJobConf(initialConf, matrixInputPath, matrixOutputPath, numInputRows, -1);
+  }
+
+  public static Configuration buildTransposeJobConf(Configuration initialConf,
                                                     Path matrixInputPath,
                                                     Path matrixOutputPath,
-                                                    int numInputRows) throws IOException {
+                                                    int numInputRows,
+                                                    int numPartitions) throws IOException {
     JobConf conf = new JobConf(initialConf, TransposeJob.class);
     conf.setJobName("TransposeJob: " + matrixInputPath + " transpose -> " + matrixOutputPath);
     FileSystem fs = FileSystem.get(matrixInputPath.toUri(), conf);
@@ -92,7 +100,7 @@ public class TransposeJob extends AbstractJob {
     matrixOutputPath = fs.makeQualified(matrixOutputPath);
     conf.setInt(NUM_ROWS_KEY, numInputRows);
 
-    FileInputFormat.addInputPath(conf, matrixInputPath);
+    FileInputFormat.setInputPaths(conf, matrixInputPath);
     conf.setInputFormat(SequenceFileInputFormat.class);
     FileOutputFormat.setOutputPath(conf, matrixOutputPath);
     conf.setMapperClass(TransposeMapper.class);
@@ -103,6 +111,8 @@ public class TransposeJob extends AbstractJob {
     conf.setOutputFormat(SequenceFileOutputFormat.class);
     conf.setOutputKeyClass(IntWritable.class);
     conf.setOutputValueClass(VectorWritable.class);
+    if(numPartitions!=-1)
+    	conf.setNumReduceTasks(numPartitions);
     return conf;
   }
 

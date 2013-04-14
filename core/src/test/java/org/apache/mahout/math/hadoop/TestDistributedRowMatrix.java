@@ -37,6 +37,7 @@ import org.apache.mahout.math.Matrix;
 import org.apache.mahout.math.MatrixSlice;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.SequentialAccessSparseVector;
+import org.apache.mahout.math.SparseRowMatrix;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorIterable;
 import org.apache.mahout.math.VectorWritable;
@@ -127,7 +128,8 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
   }
 
   
-  @Test
+  //TODO -- takes too long...
+  //@Test
   public void testNorm2EstSymmetric() throws Exception {
   	double NORM2EST_TOLERANCE = 0.01;
   	double ERROR_TOLERANCE = 0.5;
@@ -208,6 +210,28 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
     assertEquals(0.0, expected.getDistanceSquared(actual), 1.0e-9);
   }
 
+  @Test
+  public void testMatrixProjection() throws Exception {
+  	
+    Matrix m = SolverTest.randomSequentialAccessSparseMatrix(20, 19, 15, 11, 10.0);
+    Matrix omega = SolverTest.randomSequentialAccessSparseMatrix(20, 16, 15, 5, 5.0);
+  	
+    //TODO: would be better to implement projection on Matrix...maybe later
+    Matrix expected = new SparseRowMatrix(20, 15);
+    for(int i=0; i<20; i++) {
+    	for(int j=0; j<15; j++) {
+    		if(omega.get(i, j)!=0)
+    			expected.setQuick(i, j, m.getQuick(i, j));
+    	}
+    }
+
+    DistributedRowMatrix distM = randomDistributedMatrix(20, 19, 15, 11, 10.0, false, "distM");
+    DistributedRowMatrix distOmega = randomDistributedMatrix(20, 16, 15, 5, 5.0, false, "distOmega");
+  	DistributedRowMatrix projected = distM.projection(distOmega);
+      	
+    assertEquals(expected, projected, EPSILON);
+  }
+  
   @Test
   public void testMatrixTimesMatrix() throws Exception {
     Matrix inputA = SolverTest.randomSequentialAccessSparseMatrix(20, 19, 15, 5, 10.0);

@@ -34,9 +34,12 @@ import org.apache.hadoop.mapred.join.CompositeInputFormat;
 import org.apache.hadoop.mapred.join.TupleWritable;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
+import org.apache.mahout.common.Pair;
+import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterator;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
+import org.apache.mahout.math.Vector.Element;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.Functions;
 
@@ -45,21 +48,26 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class MatrixScalarMultiplicationJob extends AbstractJob {
+public class MatrixViewPartJob extends AbstractJob {
 
-  private static final String SCALAR = "DistributedMatrix.MatrixScalarMultiply.Scalar";
+	//assuming 0-based indices
+  private static final String ROW_IDX_START = "DistributedMatrix.MatrixViewPart.ROW_IDX_START";
+  private static final String ROW_IDX_END = "DistributedMatrix.MatrixViewPart.ROW_IDX_END";
+  private static final String COL_IDX_START = "DistributedMatrix.MatrixViewPart.COL_IDX_START";
+  private static final String COL_IDX_END = "DistributedMatrix.MatrixViewPart.COL_IDX_END";
 
-  public static Configuration createMatrixScalarMultiplyJobConf(Configuration initialConf, 
-                                                          Path matrixPath, 
-                                                          double scalar, 
-                                                          Path outPath) {
-    JobConf conf = new JobConf(initialConf, MatrixScalarMultiplicationJob.class);
+	public static Configuration createMatrixViewPartJobConf(Configuration initialConf, Path matrixPath, int rowIdxStart, int rowIdxEnd,
+																									int colIdxStart, int colIdxEnd, Path outPath) {
+    JobConf conf = new JobConf(initialConf, MatrixViewPartJob.class);
     conf.setInputFormat(SequenceFileInputFormat.class);
     FileInputFormat.setInputPaths(conf, matrixPath);    
     conf.setOutputFormat(SequenceFileOutputFormat.class);
-    conf.set(SCALAR, Double.toString(scalar));
+    conf.set(ROW_IDX_START, Integer.toString(rowIdxStart));
+    conf.set(ROW_IDX_END, Integer.toString(rowIdxEnd));
+    conf.set(COL_IDX_START, Integer.toString(colIdxStart));
+    conf.set(COL_IDX_END, Integer.toString(colIdxEnd));
     FileOutputFormat.setOutputPath(conf, outPath);
-    conf.setMapperClass(MatrixScalarMultiplyMapper.class);
+    conf.setMapperClass(MatrixViewPartMapper.class);
     conf.setMapOutputKeyClass(IntWritable.class);
     conf.setMapOutputValueClass(VectorWritable.class);
     conf.setOutputKeyClass(IntWritable.class);
@@ -69,14 +77,17 @@ public class MatrixScalarMultiplicationJob extends AbstractJob {
   }
 
   public static void main(String[] args) throws Exception {
-    ToolRunner.run(new MatrixScalarMultiplicationJob(), args);
+    ToolRunner.run(new MatrixViewPartJob(), args);
   }
 
   @Override
   public int run(String[] strings) throws Exception {
     addOption("numRows", "nr", "Number of rows of the input matrix", true);
     addOption("numCols", "nc", "Number of columns of the input matrix", true);
-    addOption("scalar", "s", "Scalar value", true);
+    addOption("rowIdxStart", "rs", "Start row index - using 0-based index", true);
+    addOption("rowIdxEnd", "re", "End row index - using 0-based index", true);
+    addOption("colIdxStart", "cs", "Start col index - using 0-based index", true);
+    addOption("colIdxEnd", "ce", "End col index - using 0-based index", true);
 
     Map<String, List<String>> argMap = parseArguments(strings);
     if (argMap == null) {
@@ -87,23 +98,32 @@ public class MatrixScalarMultiplicationJob extends AbstractJob {
                                                       new Path(getOption("tempDir")),
                                                       Integer.parseInt(getOption("numRows")),
                                                       Integer.parseInt(getOption("numCols")));
-
-    double s = Double.parseDouble(getOption("scalar"));
+    
+    int rowIdxStart = Integer.parseInt(getOption("rowIdxStart"));
+    int rowIdxEnd = Integer.parseInt(getOption("rowIdxEnd"));
+    int colIdxStart = Integer.parseInt(getOption("colIdxStart"));
+    int colIdxEnd = Integer.parseInt(getOption("colIdxEnd"));
     
     m.setConf(new Configuration(getConf()));
 
-    m.times(s);
+    m.viewPart(rowIdxStart, rowIdxEnd, colIdxStart, colIdxEnd);
     return 0;
   }
 
-  public static class MatrixScalarMultiplyMapper extends MapReduceBase
+  public static class MatrixViewPartMapper extends MapReduceBase
       implements Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable> {
 
-    private double scalar;
+    private int rowIdxStart;
+    private int rowIdxEnd;
+    private int colIdxStart;
+    private int colIdxEnd;
 
     @Override
     public void configure(JobConf conf) {
-    	scalar = Double.valueOf(conf.get(SCALAR));
+    	rowIdxStart = Integer.valueOf(conf.get(ROW_IDX_START));
+    	rowIdxEnd = Integer.valueOf(conf.get(ROW_IDX_END));
+    	colIdxStart = Integer.valueOf(conf.get(COL_IDX_START));
+    	colIdxEnd = Integer.valueOf(conf.get(COL_IDX_END));
     }
 
     @Override
@@ -112,10 +132,26 @@ public class MatrixScalarMultiplicationJob extends AbstractJob {
                     OutputCollector<IntWritable,VectorWritable> out,
                     Reporter reporter) throws IOException {
 
-      VectorWritable scaledVector = new VectorWritable(v.get().times(scalar));
-      out.collect(index, scaledVector);
+      int rowIdx = index.get();
+      if(rowIdx >= rowIdxStart && rowIdx <= rowIdxEnd) {
+      	Vector vNew = new SequentialAccessSparseVector(colIdxEnd-colIdxStart+1);
+      	Vector vPart = v.get().viewPart(colIdxStart, colIdxEnd-colIdxStart+1);
+      	
+        Iterator<Element> vPartIterator = vPart.iterateNonZero();
+        
+        while(vPartIterator.hasNext()) {
+        	Element e = vPartIterator.next();
+        	vNew.setQuick(e.index(), e.get());
+        }
+      	
+        out.collect( new IntWritable(rowIdx-rowIdxStart), new VectorWritable(vNew) );      	
+      }
+      
+      
     }
   }
+
+
 
 
 }

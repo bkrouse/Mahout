@@ -91,7 +91,7 @@ public final class MatrixColumnMeansJob {
                          .delete(outputVectorTmpPath, true);
       job.setNumReduceTasks(1);
       FileOutputFormat.setOutputPath(job, outputVectorTmpPath);
-      FileInputFormat.addInputPath(job, inputPath);
+      FileInputFormat.setInputPaths(job, inputPath);
       job.setInputFormatClass(SequenceFileInputFormat.class);
       job.setOutputFormatClass(SequenceFileOutputFormat.class);
       FileOutputFormat.setOutputPath(job, outputVectorTmpPath);

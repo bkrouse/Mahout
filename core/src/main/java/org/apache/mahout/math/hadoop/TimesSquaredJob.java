@@ -167,7 +167,7 @@ public final class TimesSquaredJob {
     conf.set(INPUT_VECTOR, ivpURI.toString());
     conf.setBoolean(IS_SPARSE_OUTPUT, !v.isDense());
     conf.setInt(OUTPUT_VECTOR_DIMENSION, outputVectorDim);
-    FileInputFormat.addInputPath(conf, matrixInputPath);
+    FileInputFormat.setInputPaths(conf, matrixInputPath);
     conf.setInputFormat(SequenceFileInputFormat.class);
     FileOutputFormat.setOutputPath(conf, new Path(outputVectorPathBase, OUTPUT_VECTOR_FILENAME));
     conf.setMapperClass(mapClass);

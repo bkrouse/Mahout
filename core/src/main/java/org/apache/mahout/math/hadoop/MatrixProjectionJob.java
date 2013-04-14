@@ -20,7 +20,6 @@ package org.apache.mahout.math.hadoop;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MapReduceBase;
@@ -45,77 +44,94 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class MatrixScalarMultiplicationJob extends AbstractJob {
+public class MatrixProjectionJob extends AbstractJob {
 
-  private static final String SCALAR = "DistributedMatrix.MatrixScalarMultiply.Scalar";
-
-  public static Configuration createMatrixScalarMultiplyJobConf(Configuration initialConf, 
-                                                          Path matrixPath, 
-                                                          double scalar, 
+  public static Configuration createMatrixProjectionJobConf(Path aPath, 
+                                                          Path bPath, 
                                                           Path outPath) {
-    JobConf conf = new JobConf(initialConf, MatrixScalarMultiplicationJob.class);
-    conf.setInputFormat(SequenceFileInputFormat.class);
-    FileInputFormat.setInputPaths(conf, matrixPath);    
+    return createMatrixProjectionJobConf(new Configuration(), aPath, bPath, outPath);
+  }
+  
+  public static Configuration createMatrixProjectionJobConf(Configuration initialConf, 
+                                                          Path aPath, 
+                                                          Path bPath, 
+                                                          Path outPath) {
+    JobConf conf = new JobConf(initialConf, MatrixProjectionJob.class);
+    conf.setInputFormat(CompositeInputFormat.class);
+    conf.set("mapred.join.expr", CompositeInputFormat.compose(
+          "inner", SequenceFileInputFormat.class, aPath, bPath));
     conf.setOutputFormat(SequenceFileOutputFormat.class);
-    conf.set(SCALAR, Double.toString(scalar));
     FileOutputFormat.setOutputPath(conf, outPath);
-    conf.setMapperClass(MatrixScalarMultiplyMapper.class);
+    conf.setMapperClass(MatrixProjectionMapper.class);
     conf.setMapOutputKeyClass(IntWritable.class);
     conf.setMapOutputValueClass(VectorWritable.class);
     conf.setOutputKeyClass(IntWritable.class);
     conf.setOutputValueClass(VectorWritable.class);
-    conf.setNumReduceTasks(0);
     return conf;
   }
 
   public static void main(String[] args) throws Exception {
-    ToolRunner.run(new MatrixScalarMultiplicationJob(), args);
+    ToolRunner.run(new MatrixProjectionJob(), args);
   }
 
   @Override
   public int run(String[] strings) throws Exception {
-    addOption("numRows", "nr", "Number of rows of the input matrix", true);
-    addOption("numCols", "nc", "Number of columns of the input matrix", true);
-    addOption("scalar", "s", "Scalar value", true);
+    addOption("numRows", "nr", "Number of rows of the input matrix and omega", true);
+    addOption("numCols", "nc", "Number of columns of the input matrix and omega", true);
+    addOption("inputPathM", "im", "Path to the input matrix M", true);
+    addOption("inputPathO", "ia", "Path to the projectiong matrix Omega", true);
 
     Map<String, List<String>> argMap = parseArguments(strings);
     if (argMap == null) {
       return -1;
     }
 
-    DistributedRowMatrix m = new DistributedRowMatrix(new Path(getOption("inputPath")),
+    DistributedRowMatrix m = new DistributedRowMatrix(new Path(getOption("inputPathM")),
+                                                      new Path(getOption("tempDir")),
+                                                      Integer.parseInt(getOption("numRows")),
+                                                      Integer.parseInt(getOption("numCols")));
+    DistributedRowMatrix omega = new DistributedRowMatrix(new Path(getOption("inputPathO")),
                                                       new Path(getOption("tempDir")),
                                                       Integer.parseInt(getOption("numRows")),
                                                       Integer.parseInt(getOption("numCols")));
 
-    double s = Double.parseDouble(getOption("scalar"));
-    
     m.setConf(new Configuration(getConf()));
+    omega.setConf(new Configuration(getConf()));
 
-    m.times(s);
+    //DistributedRowMatrix c = a.times(b);
+    m.projection(omega);
     return 0;
   }
 
-  public static class MatrixScalarMultiplyMapper extends MapReduceBase
-      implements Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable> {
-
-    private double scalar;
+  public static class MatrixProjectionMapper extends MapReduceBase
+      implements Mapper<IntWritable,TupleWritable,IntWritable,VectorWritable> {
 
     @Override
     public void configure(JobConf conf) {
-    	scalar = Double.valueOf(conf.get(SCALAR));
     }
 
     @Override
     public void map(IntWritable index,
-    								VectorWritable v,
+                    TupleWritable v,
                     OutputCollector<IntWritable,VectorWritable> out,
                     Reporter reporter) throws IOException {
-
-      VectorWritable scaledVector = new VectorWritable(v.get().times(scalar));
-      out.collect(index, scaledVector);
+    	
+    	//TODO: will I always get an entire row here?  Or will Hadoop sometimes split this up?
+    	//TODO: will rowFrag always be at 0, and omegaFrag at 1?
+    	Vector rowFrag = ((VectorWritable)v.get(0)).get();
+    	Vector omegaFrag = ((VectorWritable)v.get(1)).get();
+    	
+      //would be better to implement project() on Vector...but I don't want to go through that until I know I'll keep this 
+      //(and committers won't spit on it...)
+      Vector outVector = new RandomAccessSparseVector(omegaFrag.size());
+      Iterator<Vector.Element> it = rowFrag.iterateNonZero();
+      while (it.hasNext()) {
+        Vector.Element e = it.next();
+        if(omegaFrag.getQuick(e.index())!=0)
+        	outVector.setQuick(e.index(), e.get());
+      }
+      out.collect(index, new VectorWritable(outVector));
     }
   }
-
 
 }
