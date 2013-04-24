@@ -46,20 +46,18 @@ public class DisplayDirichlet extends DisplayClustering {
   
   public DisplayDirichlet() {
     initialize();
-    this.setTitle("Dirichlet Process Clusters - Normal Distribution (>" + (int) (significance * 100)
-        + "% of population)");
+    setTitle("Dirichlet Process Clusters - Normal Distribution (>" + (int) (significance * 100) + "% of population)");
   }
-  
-  // Override the paint() method
+
   @Override
   public void paint(Graphics g) {
     plotSampleData((Graphics2D) g);
     plotClusters((Graphics2D) g);
   }
   
-  protected static void generateResults(Path input, Path output,
-      ModelDistribution<VectorWritable> modelDist, int numClusters, int numIterations, double alpha0, int thin, int burnin) throws IOException, ClassNotFoundException,
-      InterruptedException {
+  protected static void generateResults(Path input, Path output, ModelDistribution<VectorWritable> modelDist,
+      int numClusters, int numIterations, double alpha0, int thin, int burnin) throws IOException,
+      ClassNotFoundException, InterruptedException {
     boolean runClusterer = true;
     if (runClusterer) {
       runSequentialDirichletClusterer(input, output, modelDist, numClusters, numIterations, alpha0);
@@ -82,7 +80,7 @@ public class DisplayDirichlet extends DisplayClustering {
   
   private static void runSequentialDirichletClassifier(Path input, Path output,
       ModelDistribution<VectorWritable> modelDist, int numClusters, int numIterations, double alpha0)
-      throws IOException {
+    throws IOException {
     List<Cluster> models = Lists.newArrayList();
     for (Model<VectorWritable> cluster : modelDist.sampleFromPrior(numClusters)) {
       models.add((Cluster) cluster);
@@ -96,7 +94,7 @@ public class DisplayDirichlet extends DisplayClustering {
   
   private static void runSequentialDirichletClusterer(Path input, Path output,
       ModelDistribution<VectorWritable> modelDist, int numClusters, int numIterations, double alpha0)
-      throws IOException, ClassNotFoundException, InterruptedException {
+    throws IOException, ClassNotFoundException, InterruptedException {
     DistributionDescription description = new DistributionDescription(modelDist.getClass().getName(),
         RandomAccessSparseVector.class.getName(), ManhattanDistanceMeasure.class.getName(), 2);
     

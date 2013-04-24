@@ -17,7 +17,6 @@
 
 package org.apache.mahout.math.hadoop.stochasticsvd;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +28,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Lists;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.Vector.Element;
@@ -123,7 +123,7 @@ public class Omega {
 
     try {
 
-      List<Future<Double>> dotFutures = new ArrayList<Future<Double>>(kp);
+      List<Future<Double>> dotFutures = Lists.newArrayListWithCapacity(kp);
 
       for (int i = 0; i < kp; i++) {
         final int index = i;
@@ -133,9 +133,8 @@ public class Omega {
           public Double call() throws Exception {
             double result = 0.0;
             if (v.isDense()) {
-              for (int k = 0; k < v.size(); k++)
+              for (int k = 0; k < v.size(); k++) {
                 // it's ok, this is reentrant
-              {
                 result += getQuick(k, index) * v.getQuick(k);
               }
 

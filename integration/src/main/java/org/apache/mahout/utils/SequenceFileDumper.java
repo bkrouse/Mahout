@@ -18,6 +18,7 @@
 package org.apache.mahout.utils;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 import org.apache.hadoop.conf.Configuration;
@@ -35,7 +36,6 @@ import org.apache.mahout.math.map.OpenObjectIntHashMap;
 import java.io.File;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.ArrayList;
 import java.util.List;
 
 public final class SequenceFileDumper extends AbstractJob {
@@ -52,7 +52,8 @@ public final class SequenceFileDumper extends AbstractJob {
     addOption("substring", "b", "The number of chars to print out per value", false);
     addOption(buildOption("count", "c", "Report the count only", false, false, null));
     addOption("numItems", "n", "Output at most <n> key value pairs", false);
-    addOption(buildOption("facets", "fa", "Output the counts per key.  Note, if there are a lot of unique keys, this can take up a fair amount of memory", false, false, null));
+    addOption(buildOption("facets", "fa", "Output the counts per key.  Note, if there are a lot of unique keys, "
+        + "this can take up a fair amount of memory", false, false, null));
     addOption(buildOption("quiet", "q", "Print only file contents.", false, false, null));
 
     if (parseArguments(args, false, true) == null) {
@@ -78,7 +79,7 @@ public final class SequenceFileDumper extends AbstractJob {
       writer = Files.newWriter(new File(getOption("output")), Charsets.UTF_8);
     } else {
       shouldClose = false;
-      writer = new OutputStreamWriter(System.out);
+      writer = new OutputStreamWriter(System.out, Charsets.UTF_8);
     }
     try {
       for (Path path : pathArr) {
@@ -137,7 +138,7 @@ public final class SequenceFileDumper extends AbstractJob {
           }
         }
         if (facets != null) {
-          List<String> keyList = new ArrayList<String>(facets.size());
+          List<String> keyList = Lists.newArrayListWithCapacity(facets.size());
 
           IntArrayList valueList = new IntArrayList(facets.size());
           facets.pairsSortedByKey(keyList, valueList);

@@ -26,7 +26,6 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.util.ToolRunner;
-import org.apache.mahout.cf.taste.common.TopK;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.common.ClassUtils;
 import org.apache.mahout.common.HadoopUtil;
@@ -51,16 +50,16 @@ public class RowSimilarityJob extends AbstractJob {
 
   public static final double NO_THRESHOLD = Double.MIN_VALUE;
 
-  static final String SIMILARITY_CLASSNAME = RowSimilarityJob.class + ".distributedSimilarityClassname";
-  static final String NUMBER_OF_COLUMNS = RowSimilarityJob.class + ".numberOfColumns";
-  static final String MAX_SIMILARITIES_PER_ROW = RowSimilarityJob.class + ".maxSimilaritiesPerRow";
-  static final String EXCLUDE_SELF_SIMILARITY = RowSimilarityJob.class + ".excludeSelfSimilarity";
+  private static final String SIMILARITY_CLASSNAME = RowSimilarityJob.class + ".distributedSimilarityClassname";
+  private static final String NUMBER_OF_COLUMNS = RowSimilarityJob.class + ".numberOfColumns";
+  private static final String MAX_SIMILARITIES_PER_ROW = RowSimilarityJob.class + ".maxSimilaritiesPerRow";
+  private static final String EXCLUDE_SELF_SIMILARITY = RowSimilarityJob.class + ".excludeSelfSimilarity";
 
-  static final String THRESHOLD = RowSimilarityJob.class + ".threshold";
-  static final String NORMS_PATH = RowSimilarityJob.class + ".normsPath";
-  static final String MAXVALUES_PATH = RowSimilarityJob.class + ".maxWeightsPath";
+  private static final String THRESHOLD = RowSimilarityJob.class + ".threshold";
+  private static final String NORMS_PATH = RowSimilarityJob.class + ".normsPath";
+  private static final String MAXVALUES_PATH = RowSimilarityJob.class + ".maxWeightsPath";
 
-  static final String NUM_NON_ZERO_ENTRIES_PATH = RowSimilarityJob.class + ".nonZeroEntriesPath";
+  private static final String NUM_NON_ZERO_ENTRIES_PATH = RowSimilarityJob.class + ".nonZeroEntriesPath";
   private static final int DEFAULT_MAX_SIMILARITIES_PER_ROW = 100;
 
   private static final int NORM_VECTOR_MARKER = Integer.MIN_VALUE;
@@ -121,8 +120,8 @@ public class RowSimilarityJob extends AbstractJob {
 
     int maxSimilaritiesPerRow = Integer.parseInt(getOption("maxSimilaritiesPerRow"));
     boolean excludeSelfSimilarity = Boolean.parseBoolean(getOption("excludeSelfSimilarity"));
-    double threshold = hasOption("threshold") ?
-        Double.parseDouble(getOption("threshold")) : NO_THRESHOLD;
+    double threshold = hasOption("threshold")
+        ? Double.parseDouble(getOption("threshold")) : NO_THRESHOLD;
 
     Path weightsPath = getTempPath("weights");
     Path normsPath = getTempPath("norms.bin");
@@ -240,7 +239,7 @@ public class RowSimilarityJob extends AbstractJob {
     }
   }
 
-  public static class MergeVectorsCombiner extends Reducer<IntWritable,VectorWritable,IntWritable,VectorWritable> {
+  private static class MergeVectorsCombiner extends Reducer<IntWritable,VectorWritable,IntWritable,VectorWritable> {
     @Override
     protected void reduce(IntWritable row, Iterable<VectorWritable> partialVectors, Context ctx)
       throws IOException, InterruptedException {
@@ -406,19 +405,27 @@ public class RowSimilarityJob extends AbstractJob {
     protected void map(IntWritable row, VectorWritable similaritiesWritable, Context ctx)
       throws IOException, InterruptedException {
       Vector similarities = similaritiesWritable.get();
-      // For performance reasons, the creation of transposedPartial is moved out of the while loop and it is reused inside
+      // For performance, the creation of transposedPartial is moved out of the while loop and it is reused inside
       Vector transposedPartial = new RandomAccessSparseVector(similarities.size(), 1);
-      TopK<Vector.Element> topKQueue = new TopK<Vector.Element>(maxSimilaritiesPerRow, Vectors.BY_VALUE);
+      TopElementsQueue topKQueue = new TopElementsQueue(maxSimilaritiesPerRow);
       Iterator<Vector.Element> nonZeroElements = similarities.iterateNonZero();
       while (nonZeroElements.hasNext()) {
         Vector.Element nonZeroElement = nonZeroElements.next();
-        topKQueue.offer(new Vectors.TemporaryElement(nonZeroElement));
-        transposedPartial.setQuick(row.get(), nonZeroElement.get());
+
+        MutableElement top = topKQueue.top();
+        double candidateValue = nonZeroElement.get();
+        if (candidateValue > top.get()) {
+          top.setIndex(nonZeroElement.index());
+          top.set(candidateValue);
+          topKQueue.updateTop();
+        }
+
+        transposedPartial.setQuick(row.get(), candidateValue);
         ctx.write(new IntWritable(nonZeroElement.index()), new VectorWritable(transposedPartial));
         transposedPartial.setQuick(row.get(), 0.0);
       }
       Vector topKSimilarities = new RandomAccessSparseVector(similarities.size(), maxSimilaritiesPerRow);
-      for (Vector.Element topKSimilarity : topKQueue.retrieve()) {
+      for (Vector.Element topKSimilarity : topKQueue.getTopElements()) {
         topKSimilarities.setQuick(topKSimilarity.index(), topKSimilarity.get());
       }
       ctx.write(row, new VectorWritable(topKSimilarities));
@@ -438,7 +445,7 @@ public class RowSimilarityJob extends AbstractJob {
 
     @Override
     protected void reduce(IntWritable row, Iterable<VectorWritable> partials, Context ctx)
-        throws IOException, InterruptedException {
+      throws IOException, InterruptedException {
       Vector allSimilarities = Vectors.merge(partials);
       Vector topKSimilarities = Vectors.topKElements(maxSimilaritiesPerRow, allSimilarities);
       ctx.write(row, new VectorWritable(topKSimilarities));

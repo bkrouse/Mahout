@@ -239,10 +239,11 @@ public final class ImplicitLinearRegressionFactorizer extends AbstractFactorizer
         itemMatrix[id][feature] = m.get(feature, 0);
       }
     }
-    /* calculating cosine similarity to determine when to stop the algorithm, this could be used to detect convergence */
+    /* calculating cosine similarity to determine when to stop the algorithm,
+    this could be used to detect convergence */
     double cosine = aTb / (Math.sqrt(normA) * Math.sqrt(normB));
     if (Double.isNaN(cosine)) {
-      log.info("Cosine similarity is NaN, recomputeUserFeatures=" + recomputeUserFeatures + " id=" + id);
+      log.info("Cosine similarity is NaN, recomputeUserFeatures={} id={}", recomputeUserFeatures, id);
     } else {
       avrChange.addDatum(cosine);
     }
@@ -314,7 +315,7 @@ public final class ImplicitLinearRegressionFactorizer extends AbstractFactorizer
     return wrapped;
   }
 
-  private class FeatureVectorCallable implements Callable<Void> {
+  private final class FeatureVectorCallable implements Callable<Void> {
 
     private final Matrix C;
     private final Matrix prefVector;
@@ -327,7 +328,7 @@ public final class ImplicitLinearRegressionFactorizer extends AbstractFactorizer
     }
 
     @Override
-      public Void call() throws Exception {
+    public Void call() throws Exception {
       Matrix XTCX;
       if (recomputeUserFeatures) {
         Matrix I = identityV(dataModel.getNumItems());
@@ -358,7 +359,7 @@ public final class ImplicitLinearRegressionFactorizer extends AbstractFactorizer
     return new QRDecomposition(A).solve(y);
   }
 
-  private static class StatsCallable implements Callable<Void> {
+  private static final class StatsCallable implements Callable<Void> {
 
     private final Callable<Void> delegate;
     private final boolean logStats;
@@ -371,7 +372,7 @@ public final class ImplicitLinearRegressionFactorizer extends AbstractFactorizer
     }
 
     @Override
-      public Void call() throws Exception {
+    public Void call() throws Exception {
       long start = System.currentTimeMillis();
       delegate.call();
       long end = System.currentTimeMillis();

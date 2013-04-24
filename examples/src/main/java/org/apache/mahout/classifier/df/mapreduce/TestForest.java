@@ -18,13 +18,13 @@
 package org.apache.mahout.classifier.df.mapreduce;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Arrays;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.commons.cli2.CommandLine;
 import org.apache.commons.cli2.Group;
@@ -226,7 +226,7 @@ public class TestForest extends Configured implements Tool {
 
     Random rng = RandomUtils.getRandom();
 
-    List<double[]> resList = new ArrayList<double[]>();
+    List<double[]> resList = Lists.newArrayList();
     if (dataFS.getFileStatus(dataPath).isDir()) {
       //the input is a directory of files
       testDirectory(outputPath, converter, forest, dataset, resList, rng);

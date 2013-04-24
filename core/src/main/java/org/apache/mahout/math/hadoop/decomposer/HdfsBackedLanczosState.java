@@ -109,8 +109,8 @@ public class HdfsBackedLanczosState extends LanczosState implements Configurable
       nextBasisVectorPath = new Path(basisPath, BASIS_PREFIX + '_' + ++numBasisVectorsOnDisk);
     }
     Vector nextVector;
-    while (numBasisVectorsOnDisk < iterationNumber &&
-          (nextVector = getBasisVector(numBasisVectorsOnDisk)) != null) {
+    while (numBasisVectorsOnDisk < iterationNumber
+        && (nextVector = getBasisVector(numBasisVectorsOnDisk)) != null) {
       persistVector(nextBasisVectorPath, numBasisVectorsOnDisk, nextVector);
       nextBasisVectorPath = new Path(basisPath, BASIS_PREFIX + '_' + ++numBasisVectorsOnDisk);
     }
@@ -218,11 +218,11 @@ public class HdfsBackedLanczosState extends LanczosState implements Configurable
         Vector norms = fetchVector(new Path(baseDir, "norms"), 0);
         Vector projections = fetchVector(new Path(baseDir, "projections"), 0);
         if (norms != null && projections != null) {
-          int i=0;
-          while (i<projections.size()-1) {
+          int i = 0;
+          while (i < projections.size() - 1) {
             diagonalMatrix.set(i, i, projections.get(i));
-            diagonalMatrix.set(i, i+1, norms.get(i));
-            diagonalMatrix.set(i+1, i, norms.get(i));
+            diagonalMatrix.set(i, i + 1, norms.get(i));
+            diagonalMatrix.set(i + 1, i, norms.get(i));
             i++;
           }
           diagonalMatrix.set(i, i, projections.get(i));

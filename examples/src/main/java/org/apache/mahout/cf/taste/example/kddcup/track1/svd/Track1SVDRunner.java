@@ -44,7 +44,7 @@ import java.io.OutputStream;
  * needs at least 6-7GB of memory, tested with -Xms6700M -Xmx6700M
  *
  */
-public class Track1SVDRunner {
+public final class Track1SVDRunner {
 
   private static final Logger log = LoggerFactory.getLogger(Track1SVDRunner.class);
 
@@ -84,8 +84,8 @@ public class Track1SVDRunner {
     log.info("Estimating validation preferences...");
     int prefsProcessed = 0;
     RunningAverage average = new FullRunningAverage();
-    for (Pair<PreferenceArray,long[]> validationPair :
-         new DataFileIterable(KDDCupDataModel.getValidationFile(dataFileDirectory))) {
+    for (Pair<PreferenceArray,long[]> validationPair
+        : new DataFileIterable(KDDCupDataModel.getValidationFile(dataFileDirectory))) {
       for (Preference validationPref : validationPair.getFirst()) {
         double estimate = estimatePreference(factorization, validationPref.getUserID(), validationPref.getItemID(),
             factorizablePreferences.getMinPreference(), factorizablePreferences.getMaxPreference());
@@ -107,8 +107,8 @@ public class Track1SVDRunner {
     try {
       out = new BufferedOutputStream(new FileOutputStream(resultFile));
 
-      for (Pair<PreferenceArray,long[]> testPair :
-           new DataFileIterable(KDDCupDataModel.getTestFile(dataFileDirectory))) {
+      for (Pair<PreferenceArray,long[]> testPair
+          : new DataFileIterable(KDDCupDataModel.getTestFile(dataFileDirectory))) {
         for (Preference testPref : testPair.getFirst()) {
           double estimate = estimatePreference(factorization, testPref.getUserID(), testPref.getItemID(),
               factorizablePreferences.getMinPreference(), factorizablePreferences.getMaxPreference());

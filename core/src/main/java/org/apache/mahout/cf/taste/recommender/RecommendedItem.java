@@ -37,5 +37,5 @@ public interface RecommendedItem {
    * @return strength of the preference
    */
   float getValue();
-  
+
 }

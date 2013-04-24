@@ -40,7 +40,7 @@ public class ImplicitFeedbackAlternatingLeastSquaresSolver {
   private final Matrix YtransposeY;
 
   public ImplicitFeedbackAlternatingLeastSquaresSolver(int numFeatures, double lambda, double alpha,
-      OpenIntObjectHashMap Y) {
+      OpenIntObjectHashMap<Vector> Y) {
     this.numFeatures = numFeatures;
     this.lambda = lambda;
     this.alpha = alpha;
@@ -56,7 +56,7 @@ public class ImplicitFeedbackAlternatingLeastSquaresSolver {
     return new QRDecomposition(A).solve(y).viewColumn(0);
   }
 
-  protected double confidence(double rating) {
+  double confidence(double rating) {
     return 1 + alpha * rating;
   }
 
@@ -65,24 +65,25 @@ public class ImplicitFeedbackAlternatingLeastSquaresSolver {
 
     IntArrayList indexes = Y.keys();
     indexes.quickSort();
+    int numIndexes = indexes.size();
 
-    Matrix YTY = new DenseMatrix(numFeatures, numFeatures);
+    double[][] YtY = new double[numFeatures][numFeatures];
 
     // Compute Y'Y by dot products between the 'columns' of Y
     for (int i = 0; i < numFeatures; i++) {
       for (int j = i; j < numFeatures; j++) {
         double dot = 0;
-        for (int k = 0; k < indexes.size(); k++) {
+        for (int k = 0; k < numIndexes; k++) {
           Vector row = Y.get(indexes.getQuick(k));
           dot += row.getQuick(i) * row.getQuick(j);
         }
-        YTY.setQuick(i, j, dot);
+        YtY[i][j] = dot;
         if (i != j) {
-          YTY.setQuick(j, i, dot);
+          YtY[j][i] = dot;
         }
       }
     }
-    return YTY;
+    return new DenseMatrix(YtY, true);
   }
 
   /** Y' (Cu - I) Y + λ I */
@@ -90,7 +91,7 @@ public class ImplicitFeedbackAlternatingLeastSquaresSolver {
     Preconditions.checkArgument(userRatings.isSequentialAccess(), "need sequential access to ratings!");
 
     /* (Cu -I) Y */
-    OpenIntObjectHashMap<Vector> CuMinusIY = new OpenIntObjectHashMap<Vector>();
+    OpenIntObjectHashMap<Vector> CuMinusIY = new OpenIntObjectHashMap<Vector>(userRatings.getNumNondefaultElements());
     Iterator<Vector.Element> ratings = userRatings.iterateNonZero();
     while (ratings.hasNext()) {
       Vector.Element e = ratings.next();
@@ -133,11 +134,11 @@ public class ImplicitFeedbackAlternatingLeastSquaresSolver {
   }
 
   private Matrix columnVectorAsMatrix(Vector v) {
-    Matrix matrix = new DenseMatrix(numFeatures, 1);
+    double[][] matrix =  new double[numFeatures][1];
     for (Vector.Element e : v) {
-      matrix.setQuick(e.index(), 0, e.get());
+      matrix[e.index()][0] =  e.get();
     }
-    return matrix;
+    return new DenseMatrix(matrix, true);
   }
 
 }

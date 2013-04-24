@@ -96,7 +96,7 @@ public class ModelTrainer {
   }
 
   public void start() {
-    log.info("Starting training threadpool with " + numTrainThreads + " threads");
+    log.info("Starting training threadpool with {} threads", numTrainThreads);
     workQueue = new ArrayBlockingQueue<Runnable>(numTrainThreads * 10);
     threadPool = new ThreadPoolExecutor(numTrainThreads, numTrainThreads, 0, TimeUnit.SECONDS,
         workQueue);
@@ -124,7 +124,7 @@ public class ModelTrainer {
       int docId = docSlice.index();
       Vector document = docSlice.vector();
       Vector topicDist = topicSlice.vector();
-      if (testFraction == 0 || docId % (1/testFraction) == 0) {
+      if (testFraction == 0 || docId % (1 / testFraction) == 0) {
         trainSync(document, topicDist, false, 10);
         perplexity += readModel.perplexity(document, topicDist);
         matrixNorm += document.norm(1);
@@ -166,13 +166,13 @@ public class ModelTrainer {
         train(document, topicDist, true, numDocTopicIters);
         if (log.isDebugEnabled()) {
           times[i % times.length] =
-              (System.nanoTime() - start) /(1.0e6 * document.getNumNondefaultElements());
+              (System.nanoTime() - start) / (1.0e6 * document.getNumNondefaultElements());
           if (i % 100 == 0) {
             long time = System.nanoTime() - startTime;
-            log.debug("trained " + i + " documents in " + (time / 1.0e6) + "ms");
+            log.debug("trained {} documents in {}ms", i, time / 1.0e6);
             if (i % 500 == 0) {
               Arrays.sort(times);
-              log.debug("training took median " + times[times.length / 2] + "ms per token-instance");
+              log.debug("training took median {}ms per token-instance", times[times.length / 2]);
             }
           }
         }
@@ -206,27 +206,26 @@ public class ModelTrainer {
   public void train(Vector document, Vector docTopicCounts, boolean update, int numDocTopicIters) {
     while (true) {
       try {
-        workQueue.put(new TrainerRunnable(readModel,
-            update ? writeModel : null, document, docTopicCounts, new SparseRowMatrix(
-            numTopics, numTerms, true), numDocTopicIters));
+        workQueue.put(new TrainerRunnable(readModel, update
+            ? writeModel
+            : null, document, docTopicCounts, new SparseRowMatrix(numTopics, numTerms, true), numDocTopicIters));
         return;
       } catch (InterruptedException e) {
-        log.warn("Interrupted waiting to submit document to work queue: " + document, e);
+        log.warn("Interrupted waiting to submit document to work queue: {}", document, e);
       }
     }
   }
 
   public void trainSync(Vector document, Vector docTopicCounts, boolean update,
       int numDocTopicIters) {
-    new TrainerRunnable(readModel,
-            update ? writeModel : null, document, docTopicCounts, new SparseRowMatrix(
-            numTopics, numTerms, true), numDocTopicIters).run();
+    new TrainerRunnable(readModel, update
+        ? writeModel
+        : null, document, docTopicCounts, new SparseRowMatrix(numTopics, numTerms, true), numDocTopicIters).run();
   }
 
   public double calculatePerplexity(Vector document, Vector docTopicCounts, int numDocTopicIters) {
-    TrainerRunnable runner =  new TrainerRunnable(readModel,
-            null, document, docTopicCounts, new SparseRowMatrix(
-            numTopics, numTerms, true), numDocTopicIters);
+    TrainerRunnable runner =  new TrainerRunnable(readModel, null, document, docTopicCounts,
+        new SparseRowMatrix(numTopics, numTerms, true), numDocTopicIters);
     return runner.call();
   }
 
@@ -239,11 +238,11 @@ public class ModelTrainer {
         log.warn("Threadpool timed out on await termination - jobs still running!");
       }
       long newTime = System.nanoTime();
-      log.info("threadpool took: " + (newTime - startTime) / 1.0e6 + "ms");
+      log.info("threadpool took: {}ms", (newTime - startTime) / 1.0e6);
       startTime = newTime;
       writeModel.awaitTermination();
       newTime = System.nanoTime();
-      log.info("writeModel.awaitTermination() took " + (newTime - startTime) / 1.0e6 + "ms");
+      log.info("writeModel.awaitTermination() took {}ms", (newTime - startTime) / 1.0e6);
       TopicModel tmpModel = writeModel;
       writeModel = readModel;
       readModel = tmpModel;
@@ -257,7 +256,7 @@ public class ModelTrainer {
     readModel.persist(outputPath, true);
   }
 
-  private static class TrainerRunnable implements Runnable, Callable<Double> {
+  private static final class TrainerRunnable implements Runnable, Callable<Double> {
     private final TopicModel readModel;
     private final TopicModel writeModel;
     private final Vector document;

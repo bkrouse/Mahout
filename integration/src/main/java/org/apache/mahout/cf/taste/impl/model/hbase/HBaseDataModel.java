@@ -20,13 +20,13 @@ package org.apache.mahout.cf.taste.impl.model.hbase;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -95,7 +95,6 @@ public final class HBaseDataModel implements DataModel, Closeable {
 
   private final HTablePool pool;
   private final String tableName;
-  public final boolean tableWasCreated;
 
   // Cache of user and item ids
   private volatile FastIDSet itemIDs;
@@ -112,7 +111,8 @@ public final class HBaseDataModel implements DataModel, Closeable {
     HTableFactory tableFactory = new HTableFactory();
     this.pool = new HTablePool(conf, 8, tableFactory);
     this.tableName = tableName;
-    this.tableWasCreated = bootstrap(conf);
+
+    bootstrap(conf);
     // Warm the cache
     refresh(null);
   }
@@ -121,7 +121,8 @@ public final class HBaseDataModel implements DataModel, Closeable {
     log.info("Using HBase table {}", tableName);
     this.pool = pool;
     this.tableName = tableName;
-    this.tableWasCreated = bootstrap(conf);
+
+    bootstrap(conf);
 
     // Warm the cache
     refresh(null);
@@ -134,7 +135,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
   /**
    * Create the table if it doesn't exist
    */
-  private boolean bootstrap(Configuration conf) throws IOException {
+  private void bootstrap(Configuration conf) throws IOException {
     HBaseAdmin admin = new HBaseAdmin(conf);
     HTableDescriptor tDesc = new HTableDescriptor(Bytes.toBytes(tableName));
     tDesc.addFamily(new HColumnDescriptor(USERS_CF));
@@ -142,10 +143,8 @@ public final class HBaseDataModel implements DataModel, Closeable {
     try {
       admin.createTable(tDesc);
       log.info("Created table {}", tableName);
-      return true;
     } catch (TableExistsException e) {
       log.info("Table {} alreay exists", tableName);
-      return false;
     } finally {
       admin.close();
     }
@@ -234,7 +233,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
 
     SortedMap<byte[],byte[]> families = result.getFamilyMap(ITEMS_CF);
     FastIDSet ids = new FastIDSet(families.size());
-    for (byte[] family: families.keySet()) {
+    for (byte[] family : families.keySet()) {
       ids.add(Bytes.toLong(family));
     }
     return ids;
@@ -344,7 +343,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
     Result[] results;
     try {
       HTableInterface table = pool.getTable(tableName);
-      List<Get> gets = new ArrayList<Get>(2);
+      List<Get> gets = Lists.newArrayListWithCapacity(2);
       gets.add(new Get(itemToBytes(itemID1)));
       gets.add(new Get(itemToBytes(itemID2)));
       gets.get(0).addFamily(USERS_CF);
@@ -385,7 +384,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
   public void setPreference(long userID, long itemID, float value) throws TasteException {
     try {
       HTableInterface table = pool.getTable(tableName);
-      List<Put> puts = new ArrayList<Put>(2);
+      List<Put> puts = Lists.newArrayListWithCapacity(2);
       puts.add(new Put(userToBytes(userID)));
       puts.add(new Put(itemToBytes(itemID)));
       puts.get(0).add(ITEMS_CF, Bytes.toBytes(itemID), Bytes.toBytes(value));
@@ -401,7 +400,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
   public void removePreference(long userID, long itemID) throws TasteException {
     try {
       HTableInterface table = pool.getTable(tableName);
-      List<Delete> deletes = new ArrayList<Delete>(2);
+      List<Delete> deletes = Lists.newArrayListWithCapacity(2);
       deletes.add(new Delete(userToBytes(userID)));
       deletes.add(new Delete(itemToBytes(itemID)));
       deletes.get(0).deleteColumns(ITEMS_CF, Bytes.toBytes(itemID));
@@ -495,7 +494,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
 
     // Copy into FastIDSet
     FastIDSet userIDs = new FastIDSet(ids.size());
-    for(long l : ids) {
+    for (long l : ids) {
       userIDs.add(l);
     }
 

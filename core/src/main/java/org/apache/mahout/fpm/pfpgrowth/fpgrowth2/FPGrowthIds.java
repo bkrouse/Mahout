@@ -24,19 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import org.apache.commons.lang.mutable.MutableLong;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Writable;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.mahout.common.Pair;
-import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterable;
 import org.apache.mahout.fpm.pfpgrowth.convertors.StatusUpdater;
 import org.apache.mahout.fpm.pfpgrowth.convertors.TopKPatternsOutputConverter;
-import org.apache.mahout.fpm.pfpgrowth.convertors.string.TopKStringPatterns;
 import org.apache.mahout.math.list.LongArrayList;
 import org.apache.mahout.math.list.IntArrayList;
 
@@ -55,16 +49,6 @@ public final class FPGrowthIds {
   private FPGrowthIds() {
   }
 
-  public static List<Pair<String,TopKStringPatterns>> readFrequentPattern(Configuration conf, Path path) {
-    List<Pair<String,TopKStringPatterns>> ret = Lists.newArrayList();
-    // key is feature value is count
-    for (Pair<Writable,TopKStringPatterns> record
-         : new SequenceFileIterable<Writable,TopKStringPatterns>(path, true, conf)) {
-      ret.add(new Pair<String,TopKStringPatterns>(record.getFirst().toString(),
-                                                  new TopKStringPatterns(record.getSecond().getPatterns())));
-    }
-    return ret;
-  }
  /**
    * Generate Top K Frequent Patterns for every feature in returnableFeatures
    * given a stream of transactions and the minimum support
@@ -192,9 +176,8 @@ public final class FPGrowthIds {
    * @param topKPatternsOutputCollector
    *          the outputCollector which transforms the given Pattern in integer
    *          format to the corresponding A Format
-   * @return Top K frequent patterns for each attribute
    */
-  private static Map<Integer,FrequentPatternMaxHeap> generateTopKFrequentPatterns(
+  private static void generateTopKFrequentPatterns(
       Iterator<Pair<IntArrayList, Long>> transactions,
       LongArrayList attributeFrequency,
       long minSupport,
@@ -217,7 +200,7 @@ public final class FPGrowthIds {
       }
     }
 
-    return fpGrowth(tree, minSupport, k, returnFeatures, topKPatternsOutputCollector, updater);
+    fpGrowth(tree, minSupport, k, returnFeatures, topKPatternsOutputCollector, updater);
   }
 
   /** 
@@ -324,19 +307,17 @@ public final class FPGrowthIds {
     return pats;
   }
 
-  private static FrequentPatternMaxHeap mergeHeap(FrequentPatternMaxHeap frequentPatterns,
-                                                  FrequentPatternMaxHeap returnedPatterns,
-                                                  int attribute,
-                                                  long count,
-                                                  boolean addAttribute) {
+  private static void mergeHeap(FrequentPatternMaxHeap frequentPatterns,
+                                FrequentPatternMaxHeap returnedPatterns,
+                                int attribute,
+                                long count,
+                                boolean addAttribute) {
     frequentPatterns.addAll(returnedPatterns, attribute, count);
     if (frequentPatterns.addable(count) && addAttribute) {
       Pattern p = new Pattern();
       p.add(attribute, count);
       frequentPatterns.insert(p);
     }
-
-    return frequentPatterns;
   }
 }
 

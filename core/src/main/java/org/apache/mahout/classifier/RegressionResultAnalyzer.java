@@ -19,11 +19,11 @@ package org.apache.mahout.classifier;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import org.apache.commons.lang.StringUtils;
+import com.google.common.collect.Lists;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * ResultAnalyzer captures the classification statistics and displays in a tabular manner
@@ -56,7 +56,7 @@ public class RegressionResultAnalyzer {
    */
   public void addInstance(double actual, double result) {
     if (results == null) {
-      results = new ArrayList<Result>();
+      results = Lists.newArrayList();
     }
     results.add(new Result(actual, result));
   }

@@ -17,12 +17,12 @@
 
 package org.apache.mahout.cf.taste.impl.common;
 
+import com.google.common.collect.Sets;
 import org.apache.mahout.cf.taste.common.Refreshable;
 import org.apache.mahout.cf.taste.impl.TasteTestCase;
 import org.junit.Test;
 
 import java.util.Collection;
-import java.util.HashSet;
 
 /** Tests {@link RefreshHelper} */
 public final class RefreshHelperTest extends TasteTestCase {
@@ -60,7 +60,7 @@ public final class RefreshHelperTest extends TasteTestCase {
     MockRefreshable mock2 = new MockRefreshable();
     helper.addDependency(mock1);
     helper.addDependency(mock2);
-    Collection<Refreshable> alreadyRefreshed = new HashSet<Refreshable>(1);
+    Collection<Refreshable> alreadyRefreshed = Sets.newHashSetWithExpectedSize(1);
     alreadyRefreshed.add(mock1);
     helper.refresh(alreadyRefreshed);
     assertEquals(0, mock1.getCallCount());

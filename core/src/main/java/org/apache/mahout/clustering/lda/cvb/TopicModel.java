@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -193,13 +192,13 @@ public class TopicModel implements Configurable, Iterable<MatrixSlice> {
   }
 
   public static Pair<Matrix, Vector> loadModel(Configuration conf, Path... modelPaths)
-      throws IOException {
+    throws IOException {
     int numTopics = -1;
     int numTerms = -1;
     List<Pair<Integer, Vector>> rows = Lists.newArrayList();
     for (Path modelPath : modelPaths) {
-      for (Pair<IntWritable, VectorWritable> row :
-          new SequenceFileIterable<IntWritable, VectorWritable>(modelPath, true, conf)) {
+      for (Pair<IntWritable, VectorWritable> row
+          : new SequenceFileIterable<IntWritable, VectorWritable>(modelPath, true, conf)) {
         rows.add(Pair.of(row.getFirst().get(), row.getSecond().get()));
         numTopics = Math.max(numTopics, row.getFirst().get());
         if (numTerms < 0) {
@@ -283,7 +282,7 @@ public class TopicModel implements Configurable, Iterable<MatrixSlice> {
       topics.set(x, docTopicModel.viewRow(x).norm(1));
     }
     // now renormalize so that sum_x(p(x|doc)) = 1
-    topics.assign(Functions.mult(1/topics.norm(1)));
+    topics.assign(Functions.mult(1 / topics.norm(1)));
   }
 
   public Vector infer(Vector original, Vector docTopics) {
@@ -330,7 +329,7 @@ public class TopicModel implements Configurable, Iterable<MatrixSlice> {
   }
 
   /**
-   * Computes {@code p(topic x|term a, document i)} distributions given input document {@code i}.
+   * Computes {@code p(topic x | term a, document i)} distributions given input document {@code i}.
    * {@code pTGT[x][a]} is the (un-normalized) {@code p(x|a,i)}, or if docTopics is {@code null},
    * {@code p(a|x)} (also un-normalized).
    *
@@ -358,7 +357,8 @@ public class TopicModel implements Configurable, Iterable<MatrixSlice> {
         int termIndex = e.index();
 
         // calc un-normalized p(topic x | term a, document i)
-        double termTopicLikelihood = (topicTermRow.get(termIndex) + eta) * (topicWeight + alpha) / (topicSum + eta * numTerms);
+        double termTopicLikelihood = (topicTermRow.get(termIndex) + eta) * (topicWeight + alpha)
+            / (topicSum + eta * numTerms);
         termTopicRow.set(termIndex, termTopicLikelihood);
       }
     }
@@ -404,8 +404,7 @@ public class TopicModel implements Configurable, Iterable<MatrixSlice> {
   }
 
   public static String vectorToSortedString(Vector vector, String[] dictionary) {
-    List<Pair<String,Double>> vectorValues =
-        new ArrayList<Pair<String, Double>>(vector.getNumNondefaultElements());
+    List<Pair<String,Double>> vectorValues = Lists.newArrayListWithCapacity(vector.getNumNondefaultElements());
     Iterator<Vector.Element> it = vector.iterateNonZero();
     while (it.hasNext()) {
       Vector.Element e = it.next();

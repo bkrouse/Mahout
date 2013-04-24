@@ -17,6 +17,7 @@
 
 package org.apache.mahout.classifier.sequencelearning.hmm;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.commons.cli2.CommandLine;
 import org.apache.commons.cli2.Group;
@@ -33,7 +34,6 @@ import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
@@ -95,7 +95,7 @@ public final class BaumWelchTrainer {
 
       //constructing random-generated HMM
       HmmModel model = new HmmModel(nrOfHiddenStates, nrOfObservedStates, new Date().getTime());
-      List<Integer> observations = new ArrayList<Integer>();
+      List<Integer> observations = Lists.newArrayList();
 
       //reading observations
       Scanner scanner = new Scanner(new FileInputStream(input), "UTF-8");

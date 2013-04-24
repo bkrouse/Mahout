@@ -17,6 +17,7 @@
 
 package org.apache.mahout.math;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 import com.google.common.base.Preconditions;
@@ -34,387 +35,7 @@ public final class Sorting {
   private static final int SIMPLE_LENGTH = 7;
   static final int SMALL = 7;
   
-  private Sorting() {
-  /* empty */
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code byte} array to search.
-   * @param value
-   *          the {@code byte} element to find.
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   */
-  public static int binarySearchFromTo(byte[] array, byte value, int from, int to) {
-    int mid = -1;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if (value > array[mid]) {
-        from = mid + 1;
-      } else if (value == array[mid]) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    if (mid < 0) {
-      return -1;
-    }
-    
-    return -mid - (value < array[mid] ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code char} array to search.
-   * @param value
-   *          the {@code char} element to find.
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   */
-  public static int binarySearchFromTo(char[] array, char value, int from, int to) {
-    int mid = -1;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if (value > array[mid]) {
-        from = mid + 1;
-      } else if (value == array[mid]) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    if (mid < 0) {
-      return -1;
-    }
-    return -mid - (value < array[mid] ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code double} array to search.
-   * @param value
-   *          the {@code double} element to find.
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   */
-  public static int binarySearchFromTo(double[] array, double value, int from, int to) {
-    long longBits = Double.doubleToLongBits(value);
-    int mid = -1;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if (lessThan(array[mid], value)) {
-        from = mid + 1;
-      } else if (longBits == Double.doubleToLongBits(array[mid])) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    if (mid < 0) {
-      return -1;
-    }
-    return -mid - (lessThan(value, array[mid]) ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code float} array to search.
-   * @param value
-   *          the {@code float} element to find.
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   */
-  public static int binarySearchFromTo(float[] array, float value, int from, int to) {
-    int intBits = Float.floatToIntBits(value);
-    int mid = -1;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if (lessThan(array[mid], value)) {
-        from = mid + 1;
-      } else if (intBits == Float.floatToIntBits(array[mid])) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    if (mid < 0) {
-      return -1;
-    }
-    return -mid - (lessThan(value, array[mid]) ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code int} array to search.
-   * @param value
-   *          the {@code int} element to find.
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   */
-  public static int binarySearchFromTo(int[] array, int value, int from, int to) {
-    int mid = -1;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if (value > array[mid]) {
-        from = mid + 1;
-      } else if (value == array[mid]) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    if (mid < 0) {
-      return -1;
-    }
-    return -mid - (value < array[mid] ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code long} array to search.
-   * @param value
-   *          the {@code long} element to find.
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   */
-  public static int binarySearchFromTo(long[] array, long value, int from, int to) {
-    int mid = -1;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if (value > array[mid]) {
-        from = mid + 1;
-      } else if (value == array[mid]) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    if (mid < 0) {
-      return -1;
-    }
-    return -mid - (value < array[mid] ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code Object} array to search.
-   * @param object
-   *          the {@code Object} element to find
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   * 
-   */
-  public static <T extends Comparable<T>> int binarySearchFromTo(T[] array, T object, int from, int to) {
-    if (array.length == 0) {
-      return -1;
-    }
-    
-    int mid = 0;
-    int result = 0;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if ((result = array[mid].compareTo(object)) < 0) {
-        from = mid + 1;
-      } else if (result == 0) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    return -mid - (result >= 0 ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array using the {@code Comparator} to compare elements.
-   * Searching in an unsorted array has an undefined result. It's also undefined
-   * which element is found if there are multiple occurrences of the same
-   * element.
-   * 
-   * @param array
-   *          the sorted array to search
-   * @param object
-   *          the element to find
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @param comparator
-   *          the {@code Comparator} used to compare the elements.
-   * @return the non-negative index of the element, or a negative index which
-   */
-  public static <T> int binarySearchFromTo(T[] array, T object, int from, int to, Comparator<? super T> comparator) {
-    int mid = 0;
-    int result = 0;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if ((result = comparator.compare(array[mid], object)) < 0) {
-        from = mid + 1;
-      } else if (result == 0) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    return -mid - (result >= 0 ? 1 : 2);
-  }
-  
-  /**
-   * Performs a binary search for the specified element in the specified
-   * ascending sorted array. Searching in an unsorted array has an undefined
-   * result. It's also undefined which element is found if there are multiple
-   * occurrences of the same element.
-   * 
-   * @param array
-   *          the sorted {@code short} array to search.
-   * @param value
-   *          the {@code short} element to find.
-   * @param from
-   *          the first index to sort, inclusive.
-   * @param to
-   *          the last index to sort, inclusive.
-   * @return the non-negative index of the element, or a negative index which is
-   *         {@code -index - 1} where the element would be inserted.
-   */
-  public static int binarySearchFromTo(short[] array, short value, int from, int to) {
-    int mid = -1;
-    while (from <= to) {
-      mid = (from + to) >>> 1;
-      if (value > array[mid]) {
-        from = mid + 1;
-      } else if (value == array[mid]) {
-        return mid;
-      } else {
-        to = mid - 1;
-      }
-    }
-    if (mid < 0) {
-      return -1;
-    }
-    return -mid - (value < array[mid] ? 1 : 2);
-  }
-  
-  private static boolean lessThan(double double1, double double2) {
-    // A slightly specialized version of
-    // Double.compare(double1, double2) < 0.
-    
-    // Non-zero and non-NaN checking.
-    if (double1 < double2) {
-      return true;
-    }
-    if (double1 > double2) {
-      return false;
-    }
-    if (double1 == double2 && double1 != 0.0) {
-      return false;
-    }
-    
-    // NaNs are equal to other NaNs and larger than any other double.
-    if (Double.isNaN(double1)) {
-      return false;
-    }
-    if (Double.isNaN(double2)) {
-      return true;
-    }
-    
-    // Deal with +0.0 and -0.0.
-    long d1 = Double.doubleToRawLongBits(double1);
-    long d2 = Double.doubleToRawLongBits(double2);
-    return d1 < d2;
-  }
-  
-  private static boolean lessThan(float float1, float float2) {
-    // A slightly specialized version of Float.compare(float1, float2) < 0.
-    
-    // Non-zero and non-NaN checking.
-    if (float1 < float2) {
-      return true;
-    }
-    if (float1 > float2) {
-      return false;
-    }
-    if (float1 == float2 && float1 != 0.0f) {
-      return false;
-    }
-    
-    // NaNs are equal to other NaNs and larger than any other float
-    if (Float.isNaN(float1)) {
-      return false;
-    }
-    if (Float.isNaN(float2)) {
-      return true;
-    }
-    
-    // Deal with +0.0 and -0.0
-    int f1 = Float.floatToRawIntBits(float1);
-    int f2 = Float.floatToRawIntBits(float2);
-    return f1 < f2;
-  }
+  private Sorting() {}
   
   private static <T> int med3(T[] array, int a, int b, int c, Comparator<T> comp) {
     T x = array[a];
@@ -503,9 +124,9 @@ public final class Sorting {
     int comparisonab = comp.compare(a, b);
     int comparisonac = comp.compare(a, c);
     int comparisonbc = comp.compare(b, c);
-    return comparisonab < 0 ?
-        (comparisonbc < 0 ? b : (comparisonac < 0 ? c : a)) :
-        (comparisonbc > 0 ? b : (comparisonac > 0 ? c : a));
+    return comparisonab < 0
+        ? (comparisonbc < 0 ? b : (comparisonac < 0 ? c : a))
+        : (comparisonbc > 0 ? b : (comparisonac > 0 ? c : a));
   }
   
   private static int med3(long[] array, int a, int b, int c, LongComparator comp) {
@@ -669,7 +290,7 @@ public final class Sorting {
    *           if {@code start < 0} or {@code end > array.length}.
    */
   public static void quickSort(int start, int end, IntComparator comp, Swapper swap) {
-    checkBounds(end+1, start, end);
+    checkBounds(end + 1, start, end);
     quickSort0(start, end, comp, swap);
   }
   
@@ -708,8 +329,7 @@ public final class Sorting {
         if (comparison == 0) {
           if (a == partitionIndex) {
             partitionIndex = b;
-          }
-          else if (b == partitionIndex) {
+          } else if (b == partitionIndex) {
             partitionIndex = a;
           }
           swap.swap(a, b);
@@ -770,7 +390,7 @@ public final class Sorting {
     length = Math.min(d - c, end - 1 - d);
     l = b;
     h = end - length;
-     while (length-- > 0) {
+    while (length-- > 0) {
       swap.swap(l, h);
       l++;
       h++;
@@ -817,15 +437,13 @@ public final class Sorting {
    * @throws ArrayIndexOutOfBoundsException
    *           if {@code start < 0} or {@code end > array.length}.
    */
-  public static void quickSort(char[] array, int start, int end,
-      CharComparator comp) {
+  public static void quickSort(char[] array, int start, int end, CharComparator comp) {
     Preconditions.checkNotNull(array);
     checkBounds(array.length, start, end);
     quickSort0(start, end, array, comp);
   }
   
-  private static void quickSort0(int start, int end, char[] array,
-      CharComparator comp) {
+  private static void quickSort0(int start, int end, char[] array, CharComparator comp) {
     char temp;
     int length = end - start;
     if (length < 7) {
@@ -922,15 +540,13 @@ public final class Sorting {
    *           if {@code start < 0} or {@code end > array.length}.
    * @see Double#compareTo(Double)
    */
-  public static void quickSort(double[] array, int start, int end,
-      DoubleComparator comp) {
+  public static void quickSort(double[] array, int start, int end, DoubleComparator comp) {
     Preconditions.checkNotNull(array);
     checkBounds(array.length, start, end);
     quickSort0(start, end, array, comp);
   }
   
-  private static void quickSort0(int start, int end, double[] array,
-      DoubleComparator comp) {
+  private static void quickSort0(int start, int end, double[] array, DoubleComparator comp) {
     double temp;
     int length = end - start;
     if (length < 7) {
@@ -1026,15 +642,13 @@ public final class Sorting {
    * @throws ArrayIndexOutOfBoundsException
    *           if {@code start < 0} or {@code end > array.length}.
    */
-  public static void quickSort(float[] array, int start, int end,
-      FloatComparator comp) {
+  public static void quickSort(float[] array, int start, int end, FloatComparator comp) {
     Preconditions.checkNotNull(array);
     checkBounds(array.length, start, end);
     quickSort0(start, end, array, comp);
   }
   
-  private static void quickSort0(int start, int end, float[] array,
-      FloatComparator comp) {
+  private static void quickSort0(int start, int end, float[] array, FloatComparator comp) {
     float temp;
     int length = end - start;
     if (length < 7) {
@@ -1130,15 +744,13 @@ public final class Sorting {
    * @throws ArrayIndexOutOfBoundsException
    *           if {@code start < 0} or {@code end > array.length}.
    */
-  public static void quickSort(int[] array, int start, int end,
-      IntComparator comp) {
+  public static void quickSort(int[] array, int start, int end, IntComparator comp) {
     Preconditions.checkNotNull(array);
     checkBounds(array.length, start, end);
     quickSort0(start, end, array, comp);
   }
   
-  private static void quickSort0(int start, int end, int[] array,
-      IntComparator comp) {
+  private static void quickSort0(int start, int end, int[] array, IntComparator comp) {
     int temp;
     int length = end - start;
     if (length < 7) {
@@ -1234,15 +846,13 @@ public final class Sorting {
    * @throws ArrayIndexOutOfBoundsException
    *           if {@code start < 0} or {@code end > array.length}.
    */
-  public static void quickSort(long[] array, int start, int end,
-      LongComparator comp) {
+  public static void quickSort(long[] array, int start, int end, LongComparator comp) {
     Preconditions.checkNotNull(array);
     checkBounds(array.length, start, end);
     quickSort0(start, end, array, comp);
   }
   
-  private static void quickSort0(int start, int end, long[] array,
-      LongComparator comp) {
+  private static void quickSort0(int start, int end, long[] array, LongComparator comp) {
     long temp;
     int length = end - start;
     if (length < 7) {
@@ -1338,15 +948,14 @@ public final class Sorting {
    * @throws ArrayIndexOutOfBoundsException
    *           if {@code start < 0} or {@code end > array.length}.
    */
-  public static <T> void quickSort(T[] array, int start, int end,
-      Comparator<T> comp) {
+  public static <T> void quickSort(T[] array, int start, int end, Comparator<T> comp) {
     Preconditions.checkNotNull(array);
     checkBounds(array.length, start, end);
     quickSort0(start, end, array, comp);
   }
   
   private static final class ComparableAdaptor<T extends Comparable<? super T>>
-      implements Comparator<T> {
+      implements Comparator<T>, Serializable {
     
     @Override
     public int compare(T o1, T o2) {
@@ -1363,13 +972,11 @@ public final class Sorting {
    * @param start the first index.
    * @param end the last index (exclusive).
    */
-  public static <T extends Comparable<? super T>> void quickSort(T[] array,
-      int start, int end) {
+  public static <T extends Comparable<? super T>> void quickSort(T[] array, int start, int end) {
     quickSort(array, start, end, new ComparableAdaptor<T>());
   }
   
-  private static <T> void quickSort0(int start, int end, T[] array,
-      Comparator<T> comp) {
+  private static <T> void quickSort0(int start, int end, T[] array, Comparator<T> comp) {
     T temp;
     int length = end - start;
     if (length < 7) {
@@ -1463,15 +1070,13 @@ public final class Sorting {
    * @throws ArrayIndexOutOfBoundsException
    *           if {@code start < 0} or {@code end > array.length}.
    */
-  public static void quickSort(short[] array, int start, int end,
-      ShortComparator comp) {
+  public static void quickSort(short[] array, int start, int end, ShortComparator comp) {
     Preconditions.checkNotNull(array);
     checkBounds(array.length, start, end);
     quickSort0(start, end, array, comp);
   }
   
-  private static void quickSort0(int start, int end, short[] array,
-      ShortComparator comp) {
+  private static void quickSort0(int start, int end, short[] array, ShortComparator comp) {
     short temp;
     int length = end - start;
     if (length < 7) {
@@ -1561,8 +1166,7 @@ public final class Sorting {
    * @param comp comparator object.
    */
   @SuppressWarnings("unchecked") // required to make the temp array work, afaict.
-  public static <T> void mergeSort(T[] array, int start, int end,
-      Comparator<T> comp) {
+  public static <T> void mergeSort(T[] array, int start, int end, Comparator<T> comp) {
     checkBounds(array.length, start, end);
     int length = end - start;
     if (length <= 0) {
@@ -1604,8 +1208,7 @@ public final class Sorting {
    * @param c
    *          - the comparator to determine the order of the array.
    */
-  private static <T> void mergeSort(T[] in, T[] out, int start, int end,
-      Comparator<T> c) {
+  private static <T> void mergeSort(T[] in, T[] out, int start, int end, Comparator<T> c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -1687,8 +1290,7 @@ public final class Sorting {
    * @param c
    *          - the comparator used to compare Objects
    */
-  private static <T> int find(T[] arr, T val, int bnd, int l, int r,
-      Comparator<T> c) {
+  private static <T> int find(T[] arr, T val, int bnd, int l, int r, Comparator<T> c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -1712,11 +1314,12 @@ public final class Sorting {
     return l - 1;
   }
   
-  private static final ByteComparator naturalByteComparison = new ByteComparator() {
+  private static final ByteComparator NATURAL_BYTE_COMPARISON = new ByteComparator() {
     @Override
     public int compare(byte o1, byte o2) {
       return o1 - o2;
-    }};
+    }
+  };
     
     /**
      * Perform a merge sort on a range of a byte array, using numerical order.
@@ -1725,7 +1328,7 @@ public final class Sorting {
      * @param end the last index (exclusive).
      */
   public static void mergeSort(byte[] array, int start, int end) {
-    mergeSort(array, start, end, naturalByteComparison);
+    mergeSort(array, start, end, NATURAL_BYTE_COMPARISON);
   }
   
   /**
@@ -1741,8 +1344,7 @@ public final class Sorting {
     mergeSort(out, array, start, end, comp);
   }
 
-  private static void mergeSort(byte[] in, byte[] out, int start, int end,
-      ByteComparator c) {
+  private static void mergeSort(byte[] in, byte[] out, int start, int end, ByteComparator c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -1804,8 +1406,7 @@ public final class Sorting {
     }
   }
 
-  private static int find(byte[] arr, byte val, int bnd, int l, int r,
-      ByteComparator c) {
+  private static int find(byte[] arr, byte val, int bnd, int l, int r, ByteComparator c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -1829,11 +1430,12 @@ public final class Sorting {
     return l - 1;
   }
   
-  private static final CharComparator naturalCharComparison = new CharComparator() {
+  private static final CharComparator NATURAL_CHAR_COMPARISON = new CharComparator() {
     @Override
     public int compare(char o1, char o2) {
       return o1 - o2;
-    }};
+    }
+  };
     
     /**
      * Perform a merge sort on a range of a char array, using numerical order.
@@ -1842,7 +1444,7 @@ public final class Sorting {
      * @param end the last index (exclusive).
      */
   public static void mergeSort(char[] array, int start, int end) {
-    mergeSort(array, start, end, naturalCharComparison);
+    mergeSort(array, start, end, NATURAL_CHAR_COMPARISON);
   }
 
   /**
@@ -1858,8 +1460,7 @@ public final class Sorting {
     mergeSort(out, array, start, end, comp);
   }
 
-  private static void mergeSort(char[] in, char[] out, int start, int end,
-      CharComparator c) {
+  private static void mergeSort(char[] in, char[] out, int start, int end, CharComparator c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -1921,8 +1522,7 @@ public final class Sorting {
     }
   }
 
-  private static int find(char[] arr, char val, int bnd, int l, int r,
-      CharComparator c) {
+  private static int find(char[] arr, char val, int bnd, int l, int r, CharComparator c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -1946,11 +1546,12 @@ public final class Sorting {
     return l - 1;
   }
   
-  private static final ShortComparator naturalShortComparison = new ShortComparator() {
+  private static final ShortComparator NATURAL_SHORT_COMPARISON = new ShortComparator() {
     @Override
     public int compare(short o1, short o2) {
       return o1 - o2;
-    }};
+    }
+  };
     
     /**
      * Perform a merge sort on a range of a short array, using numerical order.
@@ -1959,7 +1560,7 @@ public final class Sorting {
      * @param end the last index (exclusive).
      */
   public static void mergeSort(short[] array, int start, int end) {
-    mergeSort(array, start, end, naturalShortComparison);
+    mergeSort(array, start, end, NATURAL_SHORT_COMPARISON);
   }
   
   public static void mergeSort(short[] array, int start, int end, ShortComparator comp) {
@@ -1976,8 +1577,7 @@ public final class Sorting {
    * @param end the last index (exclusive).
    * @param c the comparator object.
    */
-  private static void mergeSort(short[] in, short[] out, int start, int end,
-      ShortComparator c) {
+  private static void mergeSort(short[] in, short[] out, int start, int end, ShortComparator c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -2039,8 +1639,7 @@ public final class Sorting {
     }
   }
 
-  private static int find(short[] arr, short val, int bnd, int l, int r,
-      ShortComparator c) {
+  private static int find(short[] arr, short val, int bnd, int l, int r, ShortComparator c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -2064,14 +1663,15 @@ public final class Sorting {
     return l - 1;
   }
   
-  private static final IntComparator naturalIntComparison = new IntComparator() {
+  private static final IntComparator NATURAL_INT_COMPARISON = new IntComparator() {
     @Override
     public int compare(int o1, int o2) {
       return o1 < o2 ? -1 : o1 > o2 ? 1 : 0;
-    }};
+    }
+  };
     
   public static void mergeSort(int[] array, int start, int end) {
-    mergeSort(array, start, end, naturalIntComparison);
+    mergeSort(array, start, end, NATURAL_INT_COMPARISON);
   }
 
   /**
@@ -2094,8 +1694,7 @@ public final class Sorting {
    * @param end the last index (exclusive).
    * @param c the comparator object.
    */
-  private static void mergeSort(int[] in, int[] out, int start, int end,
-      IntComparator c) {
+  private static void mergeSort(int[] in, int[] out, int start, int end, IntComparator c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -2157,8 +1756,7 @@ public final class Sorting {
     }
   }
 
-  private static int find(int[] arr, int val, int bnd, int l, int r,
-      IntComparator c) {
+  private static int find(int[] arr, int val, int bnd, int l, int r, IntComparator c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -2183,11 +1781,12 @@ public final class Sorting {
   }
   
   
-  private static final LongComparator naturalLongComparison = new LongComparator() {
+  private static final LongComparator NATURAL_LONG_COMPARISON = new LongComparator() {
     @Override
     public int compare(long o1, long o2) {
       return o1 < o2 ? -1 : o1 > o2 ? 1 : 0;
-    }};
+    }
+  };
     
     /**
      * Perform a merge sort on a range of a long array using numerical order.
@@ -2196,7 +1795,7 @@ public final class Sorting {
      * @param end the last index (exclusive).
      */
   public static void mergeSort(long[] array, int start, int end) {
-    mergeSort(array, start, end, naturalLongComparison);
+    mergeSort(array, start, end, NATURAL_LONG_COMPARISON);
   }
 
   /**
@@ -2212,8 +1811,7 @@ public final class Sorting {
     mergeSort(out, array, start, end, comp);
   }
 
-  private static void mergeSort(long[] in, long[] out, int start, int end,
-      LongComparator c) {
+  private static void mergeSort(long[] in, long[] out, int start, int end, LongComparator c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -2275,8 +1873,7 @@ public final class Sorting {
     }
   }
 
-  private static int find(long[] arr, long val, int bnd, int l, int r,
-      LongComparator c) {
+  private static int find(long[] arr, long val, int bnd, int l, int r, LongComparator c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -2300,11 +1897,12 @@ public final class Sorting {
     return l - 1;
   }
   
-  private static final FloatComparator naturalFloatComparison = new FloatComparator() {
+  private static final FloatComparator NATURAL_FLOAT_COMPARISON = new FloatComparator() {
     @Override
     public int compare(float o1, float o2) {
       return Float.compare(o1, o2);
-    }};
+    }
+  };
     
     /**
      * Perform a merge sort on a range of a float array using Float.compare for an ordering.
@@ -2313,7 +1911,7 @@ public final class Sorting {
      * @param end the last index (exclusive).
      */
   public static void mergeSort(float[] array, int start, int end) {
-    mergeSort(array, start, end, naturalFloatComparison);
+    mergeSort(array, start, end, NATURAL_FLOAT_COMPARISON);
   }
 
   /**
@@ -2329,8 +1927,7 @@ public final class Sorting {
     mergeSort(out, array, start, end, comp);
   }
 
-  private static void mergeSort(float[] in, float[] out, int start, int end,
-      FloatComparator c) {
+  private static void mergeSort(float[] in, float[] out, int start, int end, FloatComparator c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -2392,8 +1989,7 @@ public final class Sorting {
     }
   }
 
-  private static int find(float[] arr, float val, int bnd, int l, int r,
-      FloatComparator c) {
+  private static int find(float[] arr, float val, int bnd, int l, int r, FloatComparator c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -2417,11 +2013,12 @@ public final class Sorting {
     return l - 1;
   }
   
-  private static final DoubleComparator naturalDoubleComparison = new DoubleComparator() {
+  private static final DoubleComparator NATURAL_DOUBLE_COMPARISON = new DoubleComparator() {
     @Override
     public int compare(double o1, double o2) {
       return Double.compare(o1, o2);
-    }};
+    }
+  };
     
     
     /**
@@ -2431,7 +2028,7 @@ public final class Sorting {
      * @param end the last index (exclusive).
      */
   public static void mergeSort(double[] array, int start, int end) {
-    mergeSort(array, start, end, naturalDoubleComparison);
+    mergeSort(array, start, end, NATURAL_DOUBLE_COMPARISON);
   }
 
   /**
@@ -2447,8 +2044,7 @@ public final class Sorting {
     mergeSort(out, array, start, end, comp);
   }
 
-  private static void mergeSort(double[] in, double[] out, int start, int end,
-      DoubleComparator c) {
+  private static void mergeSort(double[] in, double[] out, int start, int end, DoubleComparator c) {
     int len = end - start;
     // use insertion sort for small arrays
     if (len <= SIMPLE_LENGTH) {
@@ -2510,8 +2106,7 @@ public final class Sorting {
     }
   }
 
-  private static int find(double[] arr, double val, int bnd, int l, int r,
-      DoubleComparator c) {
+  private static int find(double[] arr, double val, int bnd, int l, int r, DoubleComparator c) {
     int m = l;
     int d = 1;
     while (m <= r) {
@@ -2536,7 +2131,7 @@ public final class Sorting {
   }
 
   /**
-   * Transforms two consecutive sorted ranges into a single sorted range.  The initial ranges are {@code [first,}
+   * Transforms two consecutive sorted ranges into a single sorted range. The initial ranges are {@code [first,}
    * middle)</code> and {@code [middle, last)}, and the resulting range is {@code [first, last)}. Elements in
    * the first input range will precede equal elements in the second.
    */
@@ -2561,7 +2156,8 @@ public final class Sorting {
     }
   
     // rotate(firstCut, middle, secondCut, swapper);
-    // is manually inlined for speed (jitter inlining seems to work only for small call depths, even if methods are "static private")
+    // is manually inlined for speed (jitter inlining seems to work only for small call depths, even if methods
+    // are "static private")
     // speedup = 1.7
     // begin inline
     int first2 = firstCut;
@@ -2599,8 +2195,8 @@ public final class Sorting {
    * @param last  One past the end of the range.
    * @param x     Element to be searched for.
    * @param comp  Comparison function.
-   * @return The largest index i such that, for every j in the range <code>[first, i)</code>, {@code comp.apply(array[j],}
-   *         x)</code> is {@code true}.
+   * @return The largest index i such that, for every j in the range <code>[first, i)</code>,
+   *        <code></code></codeA>{@code comp.apply(array[j], x)</code> is {@code true}.
    * @see Sorting#upperBound
    */
   static int lowerBound(int first, int last, int x, IntComparator comp) {
@@ -2640,7 +2236,8 @@ public final class Sorting {
     /*
       We retain the same method signature as quickSort.
       Given only a comparator and swapper we do not know how to copy and move elements from/to temporary arrays.
-      Hence, in contrast to the JDK mergesorts this is an "in-place" mergesort, i.e. does not allocate any temporary arrays.
+      Hence, in contrast to the JDK mergesorts this is an "in-place" mergesort, i.e. does not allocate any temporary
+      arrays.
       A non-inplace mergesort would perhaps be faster in most cases, but would require non-intuitive delegate objects...
     */
     int length = toIndex - fromIndex;

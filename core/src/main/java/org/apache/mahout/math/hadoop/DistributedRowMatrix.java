@@ -171,6 +171,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     return numCols;
   }
 
+
   /**
    * This implements matrix this.transpose().times(other)
 	 * @param outPath the path to the rowPath of the resultant product matrix
@@ -180,7 +181,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
   public DistributedRowMatrix times(DistributedRowMatrix other) throws IOException {
     Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFFFF));
 
-    return times(outPath, other);
+    return times(other, outPath);
   }
   
   /**
@@ -188,7 +189,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
    * @param other   a DistributedRowMatrix
    * @return    a DistributedRowMatrix containing the product
    */
-  public DistributedRowMatrix times(Path outPath, DistributedRowMatrix other) throws IOException {
+  public DistributedRowMatrix times(DistributedRowMatrix other, Path outPath) throws IOException {
     if (numRows != other.numRows()) {
       throw new CardinalityException(numRows, other.numRows());
     }

@@ -17,6 +17,7 @@
 package org.apache.mahout.clustering.minhash;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -29,7 +30,6 @@ import org.apache.mahout.clustering.minhash.HashFactory.HashType;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.commandline.DefaultOptionCreator;
-import org.apache.mahout.common.commandline.MinhashOptionCreator;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterable;
 import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
@@ -37,7 +37,6 @@ import org.apache.mahout.math.VectorWritable;
 import org.junit.Test;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -100,7 +99,7 @@ public final class TestMinHashClustering extends MahoutTestCase {
   
   private static Set<Integer> getValues(Vector vector) {
     Iterator<Vector.Element> itr = vector.iterator();
-    Set<Integer> values = new HashSet<Integer>();
+    Set<Integer> values = Sets.newHashSet();
     while (itr.hasNext()) {
       values.add((int) itr.next().get());
     }
@@ -113,10 +112,10 @@ public final class TestMinHashClustering extends MahoutTestCase {
         Set<Integer> itemSet1 = getValues(clusteredItems.get(i));
         for (int j = i + 1; j < clusteredItems.size(); j++) {
           Set<Integer> itemSet2 = getValues(clusteredItems.get(j));
-          Collection<Integer> union = new HashSet<Integer>();
+          Collection<Integer> union = Sets.newHashSet();
           union.addAll(itemSet1);
           union.addAll(itemSet2);
-          Collection<Integer> intersect = new HashSet<Integer>();
+          Collection<Integer> intersect = Sets.newHashSet();
           intersect.addAll(itemSet1);
           intersect.retainAll(itemSet2);
           double similarity = intersect.size() / (double) union.size();

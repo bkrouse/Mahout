@@ -19,13 +19,13 @@ package org.apache.mahout.fpm.pfpgrowth;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
 import com.google.common.collect.Lists;
-import org.apache.commons.lang.mutable.MutableLong;
+import com.google.common.collect.Sets;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -55,7 +55,7 @@ public final class ParallelFPGrowthReducer extends Reducer<IntWritable,Transacti
   private int maxPerGroup;
   private boolean useFP2;
 
-  private static class IteratorAdapter implements Iterator<Pair<List<Integer>,Long>> {
+  private static final class IteratorAdapter implements Iterator<Pair<List<Integer>,Long>> {
     private final Iterator<Pair<IntArrayList,Long>> innerIter;
 
     private IteratorAdapter(Iterator<Pair<IntArrayList,Long>> transactionIter) {
@@ -113,7 +113,7 @@ public final class ParallelFPGrowthReducer extends Reducer<IntWritable,Transacti
           localFList,
           minSupport,
           maxHeapSize,
-          new HashSet<Integer>(PFPGrowth.getGroupMembers(key.get(), 
+          Sets.newHashSet(PFPGrowth.getGroupMembers(key.get(),
                                                          maxPerGroup, 
                                                          numFeatures).toList()),
           new IntegerStringOutputConverter(

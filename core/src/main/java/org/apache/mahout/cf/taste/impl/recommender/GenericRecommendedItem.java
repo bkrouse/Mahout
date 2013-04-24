@@ -53,7 +53,7 @@ public final class GenericRecommendedItem implements RecommendedItem, Serializab
   public float getValue() {
     return value;
   }
-  
+
   @Override
   public String toString() {
     return "RecommendedItem[item:" + itemID + ", value:" + value + ']';

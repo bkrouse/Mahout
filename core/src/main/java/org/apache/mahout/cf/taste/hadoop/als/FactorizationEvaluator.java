@@ -108,10 +108,10 @@ public class FactorizationEvaluator extends AbstractJob {
     return 0;
   }
 
-  protected double computeRmse(Path errors) {
+  double computeRmse(Path errors) {
     RunningAverage average = new FullRunningAverage();
-    for (Pair<DoubleWritable,NullWritable> entry :
-      new SequenceFileDirIterable<DoubleWritable, NullWritable>(errors, PathType.LIST, PathFilters.logsCRCFilter(),
+    for (Pair<DoubleWritable,NullWritable> entry
+        : new SequenceFileDirIterable<DoubleWritable, NullWritable>(errors, PathType.LIST, PathFilters.logsCRCFilter(),
           getConf())) {
       DoubleWritable error = entry.getFirst();
       average.addDatum(error.get() * error.get());
@@ -130,8 +130,8 @@ public class FactorizationEvaluator extends AbstractJob {
       Path pathToU = new Path(ctx.getConfiguration().get(USER_FEATURES_PATH));
       Path pathToM = new Path(ctx.getConfiguration().get(ITEM_FEATURES_PATH));
 
-      U = ALSUtils.readMatrixByRows(pathToU, ctx.getConfiguration());
-      M = ALSUtils.readMatrixByRows(pathToM, ctx.getConfiguration());
+      U = ALS.readMatrixByRows(pathToU, ctx.getConfiguration());
+      M = ALS.readMatrixByRows(pathToM, ctx.getConfiguration());
     }
 
     @Override

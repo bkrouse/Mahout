@@ -17,8 +17,6 @@
 
 package org.apache.mahout.cf.taste.hadoop.als;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -31,6 +29,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.map.MultithreadedMapper;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.cf.taste.hadoop.TasteHadoopUtils;
@@ -47,9 +46,6 @@ import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
-import org.apache.mahout.math.als.AlternatingLeastSquaresSolver;
-import org.apache.mahout.math.als.ImplicitFeedbackAlternatingLeastSquaresSolver;
-import org.apache.mahout.math.map.OpenIntObjectHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +73,7 @@ import java.util.Random;
  * <li>--lambda (double): regularization parameter to avoid overfitting</li>
  * <li>--userFeatures (path): path to the user feature matrix</li>
  * <li>--itemFeatures (path): path to the item feature matrix</li>
+ * <li>--numThreadsPerSolver (int): threads to use per solver mapper, (default: 1)</li>
  * </ol>
  */
 public class ParallelALSFactorizationJob extends AbstractJob {
@@ -93,6 +90,7 @@ public class ParallelALSFactorizationJob extends AbstractJob {
   private int numFeatures;
   private double lambda;
   private double alpha;
+  private int numThreadsPerSolver;
 
   public static void main(String[] args) throws Exception {
     ToolRunner.run(new ParallelALSFactorizationJob(), args);
@@ -108,6 +106,7 @@ public class ParallelALSFactorizationJob extends AbstractJob {
     addOption("alpha", null, "confidence parameter (only used on implicit feedback)", String.valueOf(40));
     addOption("numFeatures", null, "dimension of the feature space", true);
     addOption("numIterations", null, "number of iterations", true);
+    addOption("numThreadsPerSolver", null, "threads per solver mapper", String.valueOf(1));
 
     Map<String,List<String>> parsedArgs = parseArguments(args);
     if (parsedArgs == null) {
@@ -120,13 +119,15 @@ public class ParallelALSFactorizationJob extends AbstractJob {
     alpha = Double.parseDouble(getOption("alpha"));
     implicitFeedback = Boolean.parseBoolean(getOption("implicitFeedback"));
 
+    numThreadsPerSolver = Integer.parseInt(getOption("numThreadsPerSolver"));
+
     /*
-        * compute the factorization A = U M'
-        *
-        * where A (users x items) is the matrix of known ratings
-        *           U (users x features) is the representation of users in the feature space
-        *           M (items x features) is the representation of items in the feature space
-        */
+    * compute the factorization A = U M'
+    *
+    * where A (users x items) is the matrix of known ratings
+    *           U (users x features) is the representation of users in the feature space
+    *           M (items x features) is the representation of items in the feature space
+    */
 
    /* create A' */
     Job itemRatings = prepareJob(getInputPath(), pathToItemRatings(),
@@ -159,7 +160,7 @@ public class ParallelALSFactorizationJob extends AbstractJob {
       return -1;
     }
 
-    Vector averageRatings = ALSUtils.readFirstRow(getTempPath("averageRatings"), getConf());
+    Vector averageRatings = ALS.readFirstRow(getTempPath("averageRatings"), getConf());
 
     /* create an initial M */
     initializeM(averageRatings);
@@ -167,10 +168,10 @@ public class ParallelALSFactorizationJob extends AbstractJob {
     for (int currentIteration = 0; currentIteration < numIterations; currentIteration++) {
       /* broadcast M, read A row-wise, recompute U row-wise */
       log.info("Recomputing U (iteration {}/{})", currentIteration, numIterations);
-      runSolver(pathToUserRatings(), pathToU(currentIteration), pathToM(currentIteration - 1));
+      runSolver(pathToUserRatings(), pathToU(currentIteration), pathToM(currentIteration - 1), currentIteration, "U");
       /* broadcast U, read A' row-wise, recompute M row-wise */
       log.info("Recomputing M (iteration {}/{})", currentIteration, numIterations);
-      runSolver(pathToItemRatings(), pathToM(currentIteration), pathToU(currentIteration));
+      runSolver(pathToItemRatings(), pathToM(currentIteration), pathToU(currentIteration), currentIteration, "M");
     }
 
     return 0;
@@ -185,6 +186,9 @@ public class ParallelALSFactorizationJob extends AbstractJob {
       writer = new SequenceFile.Writer(fs, getConf(), new Path(pathToM(-1), "part-m-00000"), IntWritable.class,
           VectorWritable.class);
 
+      IntWritable index = new IntWritable();
+      VectorWritable featureVector = new VectorWritable();
+
       Iterator<Vector.Element> averages = averageRatings.iterateNonZero();
       while (averages.hasNext()) {
         Vector.Element e = averages.next();
@@ -193,7 +197,9 @@ public class ParallelALSFactorizationJob extends AbstractJob {
         for (int m = 1; m < numFeatures; m++) {
           row.setQuick(m, random.nextDouble());
         }
-        writer.append(new IntWritable(e.index()), new VectorWritable(row));
+        index.set(e.index());
+        featureVector.set(row);
+        writer.append(index, featureVector);
       }
     } finally {
       Closeables.closeQuietly(writer);
@@ -201,6 +207,11 @@ public class ParallelALSFactorizationJob extends AbstractJob {
   }
 
   static class ItemRatingVectorsMapper extends Mapper<LongWritable,Text,IntWritable,VectorWritable> {
+
+    private final IntWritable itemIDWritable = new IntWritable();
+    private final VectorWritable ratingsWritable = new VectorWritable(true);
+    private final Vector ratings = new SequentialAccessSparseVector(Integer.MAX_VALUE, 1);
+
     @Override
     protected void map(LongWritable offset, Text line, Context ctx) throws IOException, InterruptedException {
       String[] tokens = TasteHadoopUtils.splitPrefTokens(line.toString());
@@ -208,96 +219,58 @@ public class ParallelALSFactorizationJob extends AbstractJob {
       int itemID = Integer.parseInt(tokens[1]);
       float rating = Float.parseFloat(tokens[2]);
 
-      Vector ratings = new RandomAccessSparseVector(Integer.MAX_VALUE, 1);
-      ratings.set(userID, rating);
+      ratings.setQuick(userID, rating);
 
-      ctx.write(new IntWritable(itemID), new VectorWritable(ratings, true));
+      itemIDWritable.set(itemID);
+      ratingsWritable.set(ratings);
+
+      ctx.write(itemIDWritable, ratingsWritable);
+
+      // prepare instance for reuse
+      ratings.setQuick(userID, 0.0d);
     }
   }
 
-  private void runSolver(Path ratings, Path output, Path pathToUorI)
-      throws ClassNotFoundException, IOException, InterruptedException {
+  private void runSolver(Path ratings, Path output, Path pathToUorI, int currentIteration, String matrixName)
+    throws ClassNotFoundException, IOException, InterruptedException {
 
-    Class<? extends Mapper> solverMapper = implicitFeedback ?
-        SolveImplicitFeedbackMapper.class : SolveExplicitFeedbackMapper.class;
+    int iterationNumber = currentIteration + 1;
+    Class<? extends Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable>> solverMapperClassInternal;
+    String name;
 
-    Job solverForUorI = prepareJob(ratings, output, SequenceFileInputFormat.class, solverMapper, IntWritable.class,
-        VectorWritable.class, SequenceFileOutputFormat.class);
+    if (implicitFeedback) {
+      solverMapperClassInternal = SolveImplicitFeedbackMapper.class;
+      name = "Recompute " + matrixName + ", iteration (" + iterationNumber + "/" + numIterations + "), "
+          + "(" + numThreadsPerSolver + " threads, implicit feedback)";
+    } else {
+      solverMapperClassInternal = SolveExplicitFeedbackMapper.class;
+      name = "Recompute " + matrixName + ", iteration (" + iterationNumber + "/" + numIterations + "), "
+          + "(" + numThreadsPerSolver + " threads, explicit feedback)";
+    }
+
+    Job solverForUorI = prepareJob(ratings, output, SequenceFileInputFormat.class, MultithreadedSharingMapper.class,
+        IntWritable.class, VectorWritable.class, SequenceFileOutputFormat.class, name);
     Configuration solverConf = solverForUorI.getConfiguration();
     solverConf.set(LAMBDA, String.valueOf(lambda));
     solverConf.set(ALPHA, String.valueOf(alpha));
     solverConf.setInt(NUM_FEATURES, numFeatures);
     solverConf.set(FEATURE_MATRIX, pathToUorI.toString());
+
+    MultithreadedMapper.setMapperClass(solverForUorI, solverMapperClassInternal);
+    MultithreadedMapper.setNumberOfThreads(solverForUorI, numThreadsPerSolver);
+
     boolean succeeded = solverForUorI.waitForCompletion(true);
     if (!succeeded) {
       throw new IllegalStateException("Job failed!");
     }
   }
 
-  static class SolveExplicitFeedbackMapper extends Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable> {
-
-    private double lambda;
-    private int numFeatures;
-    private OpenIntObjectHashMap<Vector> UorM;
-
-    @Override
-    protected void setup(Mapper.Context ctx) throws IOException, InterruptedException {
-      lambda = Double.parseDouble(ctx.getConfiguration().get(LAMBDA));
-      numFeatures = ctx.getConfiguration().getInt(NUM_FEATURES, -1);
-
-      Path UOrIPath = new Path(ctx.getConfiguration().get(FEATURE_MATRIX));
-
-      UorM = ALSUtils.readMatrixByRows(UOrIPath, ctx.getConfiguration());
-      Preconditions.checkArgument(numFeatures > 0, "numFeatures was not set correctly!");
-    }
-
-    @Override
-    protected void map(IntWritable userOrItemID, VectorWritable ratingsWritable, Context ctx)
-        throws IOException, InterruptedException {
-      Vector ratings = new SequentialAccessSparseVector(ratingsWritable.get());
-      List<Vector> featureVectors = Lists.newArrayList();
-      Iterator<Vector.Element> interactions = ratings.iterateNonZero();
-      while (interactions.hasNext()) {
-        int index = interactions.next().index();
-        featureVectors.add(UorM.get(index));
-      }
-
-      Vector uiOrmj = AlternatingLeastSquaresSolver.solve(featureVectors, ratings, lambda, numFeatures);
-
-      ctx.write(userOrItemID, new VectorWritable(uiOrmj));
-    }
-  }
-
-  static class SolveImplicitFeedbackMapper extends Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable> {
-
-    private ImplicitFeedbackAlternatingLeastSquaresSolver solver;
-
-    @Override
-    protected void setup(Mapper.Context ctx) throws IOException, InterruptedException {
-      double lambda = Double.parseDouble(ctx.getConfiguration().get(LAMBDA));
-      double alpha = Double.parseDouble(ctx.getConfiguration().get(ALPHA));
-      int numFeatures = ctx.getConfiguration().getInt(NUM_FEATURES, -1);
-
-      Path YPath = new Path(ctx.getConfiguration().get(FEATURE_MATRIX));
-      OpenIntObjectHashMap<Vector> Y = ALSUtils.readMatrixByRows(YPath, ctx.getConfiguration());
-
-      solver = new ImplicitFeedbackAlternatingLeastSquaresSolver(numFeatures, lambda, alpha, Y);
-
-      Preconditions.checkArgument(numFeatures > 0, "numFeatures was not set correctly!");
-    }
-
-    @Override
-    protected void map(IntWritable userOrItemID, VectorWritable ratingsWritable, Context ctx)
-        throws IOException, InterruptedException {
-      Vector ratings = new SequentialAccessSparseVector(ratingsWritable.get());
-
-      Vector uiOrmj = solver.solve(ratings);
-
-      ctx.write(userOrItemID, new VectorWritable(uiOrmj));
-    }
-  }
-
   static class AverageRatingMapper extends Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable> {
+
+    private final IntWritable firstIndex = new IntWritable(0);
+    private final Vector featureVector = new RandomAccessSparseVector(Integer.MAX_VALUE, 1);
+    private final VectorWritable featureVectorWritable = new VectorWritable();
+
     @Override
     protected void map(IntWritable r, VectorWritable v, Context ctx) throws IOException, InterruptedException {
       RunningAverage avg = new FullRunningAverage();
@@ -305,9 +278,13 @@ public class ParallelALSFactorizationJob extends AbstractJob {
       while (elements.hasNext()) {
         avg.addDatum(elements.next().get());
       }
-      Vector vector = new RandomAccessSparseVector(Integer.MAX_VALUE, 1);
-      vector.setQuick(r.get(), avg.getAverage());
-      ctx.write(new IntWritable(0), new VectorWritable(vector));
+
+      featureVector.setQuick(r.get(), avg.getAverage());
+      featureVectorWritable.set(featureVector);
+      ctx.write(firstIndex, featureVectorWritable);
+
+      // prepare instance for reuse
+      featureVector.setQuick(r.get(), 0.0d);
     }
   }
 

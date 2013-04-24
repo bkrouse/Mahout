@@ -357,9 +357,9 @@ public class SVTSolver extends AbstractJob {
 	    	Utrans.setConf(conf);
 	    	DistributedRowMatrix Vtrans = svd.V.transpose(new Path(iterationWorkingPath,"Vtrans"), 1);  
 	    	Vtrans.setConf(conf);
-	    	DistributedRowMatrix SV = DiagS.times(new Path(iterationWorkingPath,"SV"), Vtrans); 
+	    	DistributedRowMatrix SV = DiagS.times(Vtrans, new Path(iterationWorkingPath,"SV")); 
 	    	SV.setConf(conf);
-	    	DistributedRowMatrix X = Utrans.times(new Path(iterationWorkingPath,"X"),SV); 
+	    	DistributedRowMatrix X = Utrans.times(SV, new Path(iterationWorkingPath,"X")); 
 	    	X.setConf(conf);
 	    	timingEnd = System.currentTimeMillis();
 	    	this.writeTimingResults(timingWriter, k, "transposingAndTimesingAndStuff", timingEnd - timingStart);

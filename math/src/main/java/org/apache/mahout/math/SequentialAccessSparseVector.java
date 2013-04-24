@@ -17,12 +17,11 @@
 
 package org.apache.mahout.math;
 
-import com.google.common.collect.AbstractIterator;
-import com.google.common.primitives.Doubles;
-import org.apache.mahout.math.function.Functions;
-
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+import com.google.common.primitives.Doubles;
 
 /**
  * <p>
@@ -55,7 +54,8 @@ public class SequentialAccessSparseVector extends AbstractVector {
   }
 
   public SequentialAccessSparseVector(int cardinality) {
-    this(cardinality, cardinality / 8); // arbitrary estimate of 'sparseness'
+    this(cardinality, Math.min(100, cardinality / 1000 < 10 ? 10 : cardinality / 1000)); // arbitrary estimate of
+                                                                                           // 'sparseness'
   }
 
   public SequentialAccessSparseVector(int cardinality, int size) {
@@ -79,7 +79,7 @@ public class SequentialAccessSparseVector extends AbstractVector {
       // in order as items are added, so it's better to sort the other
       // Vector's elements by index and then add them to this
       copySortedRandomAccessSparseVector(other);
-    }    
+    }
   }
 
   // Sorts a RandomAccessSparseVectors Elements before adding them to this
@@ -94,8 +94,8 @@ public class SequentialAccessSparseVector extends AbstractVector {
     }
     Arrays.sort(sortableElements);
     for (int i = 0; i < sortableElements.length; i++) {
-      values.getIndices()[i] = sortableElements[i].index;
-      values.getValues()[i] = sortableElements[i].value;
+      values.setIndexAt(i, sortableElements[i].index);
+      values.setValueAt(i, sortableElements[i].value);
     }
     values = new OrderedIntDoubleMapping(values.getIndices(), values.getValues(), elementCount);
     return elementCount;
@@ -191,13 +191,19 @@ public class SequentialAccessSparseVector extends AbstractVector {
   }
 
   @Override
-  public int getNumNondefaultElements() {
-    return values.getNumMappings();
+  public void incrementQuick(int index, double increment) {
+    invalidateCachedLength();
+    values.increment(index, increment);
   }
 
   @Override
   public SequentialAccessSparseVector like() {
     return new SequentialAccessSparseVector(size(), values.getNumMappings());
+  }
+
+  @Override
+  public int getNumNondefaultElements() {
+    return values.getNumMappings();
   }
 
   @Override
@@ -210,65 +216,54 @@ public class SequentialAccessSparseVector extends AbstractVector {
     return new AllIterator();
   }
 
-  @Override
-  public Vector minus(Vector that) {
-    if (size() != that.size()) {
-      throw new CardinalityException(size(), that.size());
-    }
-    // Here we compute "that - this" since it's not fast to randomly access "this"
-    // and then invert at the end
-    Vector result = that.clone();
-    Iterator<Element> iter = this.iterateNonZero();
-    while (iter.hasNext()) {
-      Element thisElement = iter.next();
-      int index = thisElement.index();
-      result.setQuick(index, that.getQuick(index) - thisElement.get());
-    }
-    result.assign(Functions.NEGATE);
-    return result;
-  }
-
-
-  private final class NonDefaultIterator extends AbstractIterator<Element> {
-
+  private final class NonDefaultIterator implements Iterator<Element> {
     private final NonDefaultElement element = new NonDefaultElement();
 
     @Override
-    protected Element computeNext() {
-      int numMappings = values.getNumMappings();
-      if (numMappings <= 0 || element.getNextOffset() >= numMappings) {
-        return endOfData();
+    public boolean hasNext() {
+      return element.getNextOffset() < values.getNumMappings();
+    }
+
+    @Override
+    public Element next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
       }
       element.advanceOffset();
       return element;
     }
 
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
 
-  private final class AllIterator extends AbstractIterator<Element> {
-
+  private final class AllIterator implements Iterator<Element> {
     private final AllElement element = new AllElement();
 
     @Override
-    protected Element computeNext() {
-      int numMappings = values.getNumMappings();
-      if (numMappings <= 0 || element.getNextIndex() > values.getIndices()[numMappings - 1]) {
-        if (element.index() >= SequentialAccessSparseVector.this.size() - 1) {
-          return endOfData();
-        } else {
-          element.advanceIndex();
-          return element;
-        }
-      } else {
-        element.advanceIndex();
-        return element;
-      }
+    public boolean hasNext() {
+      return element.getNextIndex() < SequentialAccessSparseVector.this.size();
     }
 
+    @Override
+    public Element next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+
+      element.advanceIndex();
+      return element;
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   private final class NonDefaultElement implements Element {
-
     private int offset = -1;
 
     void advanceOffset() {
@@ -292,12 +287,11 @@ public class SequentialAccessSparseVector extends AbstractVector {
     @Override
     public void set(double value) {
       invalidateCachedLength();
-      values.getValues()[offset] = value;
+      values.setValueAt(offset, value);
     }
   }
 
   private final class AllElement implements Element {
-
     private int index = -1;
     private int nextOffset;
 
@@ -329,8 +323,8 @@ public class SequentialAccessSparseVector extends AbstractVector {
     @Override
     public void set(double value) {
       invalidateCachedLength();
-      if (nextOffset < values.getNumMappings() && index == values.getIndices()[nextOffset]) {
-        values.getValues()[nextOffset] = value;
+      if (nextOffset < values.getNumMappings() && index == values.indexAt(nextOffset)) {
+        values.setValueAt(nextOffset, value);
       } else {
         // Yes, this works; the offset into indices of the new value's index will still be nextOffset
         values.set(index, value);
@@ -342,7 +336,7 @@ public class SequentialAccessSparseVector extends AbstractVector {
   private static final class OrderedElement implements Comparable<OrderedElement> {
     private final int index;
     private final double value;
-    
+
     OrderedElement(int index, double value) {
       this.index = index;
       this.value = value;
@@ -368,7 +362,5 @@ public class SequentialAccessSparseVector extends AbstractVector {
       OrderedElement other = (OrderedElement) o;
       return index == other.index && value == other.value;
     }
-
   }
-  
 }
