@@ -18,6 +18,7 @@
 package org.apache.mahout.utils;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Random;
 
 import org.apache.hadoop.conf.Configuration;
@@ -82,7 +83,7 @@ public final class SplitInputJob {
   @SuppressWarnings("rawtypes")
   public static void run(Configuration initialConf, Path inputPath,
       Path outputPath, int keepPct, float randomSelectionPercent)
-      throws IOException, ClassNotFoundException, InterruptedException {
+    throws IOException, ClassNotFoundException, InterruptedException {
 
     int downsamplingFactor = (int) (100.0 / keepPct);
     initialConf.setInt(DOWNSAMPLING_FACTOR, downsamplingFactor);
@@ -114,6 +115,7 @@ public final class SplitInputJob {
 
     // Setup job with new API
     Job job = new Job(oldApiJob);
+    job.setJarByClass(SplitInputJob.class);
     FileInputFormat.addInputPath(job, inputPath);
     FileOutputFormat.setOutputPath(job, outputPath);
     job.setNumReduceTasks(1);
@@ -214,7 +216,7 @@ public final class SplitInputJob {
   /**
    * Randomly permute key value pairs
    */
-  public static class SplitInputComparator extends WritableComparator {
+  public static class SplitInputComparator extends WritableComparator implements Serializable {
 
     private final Random rnd = RandomUtils.getRandom();
 

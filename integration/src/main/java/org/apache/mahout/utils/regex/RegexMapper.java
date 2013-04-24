@@ -17,6 +17,7 @@
 
 package org.apache.mahout.utils.regex;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -25,7 +26,6 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.mahout.common.ClassUtils;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -45,7 +45,7 @@ public class RegexMapper extends Mapper<LongWritable, Text, LongWritable, Text> 
 
   @Override
   protected void setup(Context context) throws IOException, InterruptedException {
-    groupsToKeep = new ArrayList<Integer>();
+    groupsToKeep = Lists.newArrayList();
     Configuration config = context.getConfiguration();
     String regexStr = config.get(REGEX);
     regex = Pattern.compile(regexStr);
@@ -56,15 +56,16 @@ public class RegexMapper extends Mapper<LongWritable, Text, LongWritable, Text> 
       }
     }
 
-    transformer = ClassUtils.instantiateAs(config.get(TRANSFORMER_CLASS, IdentityTransformer.class.getName()), RegexTransformer.class);
+    transformer = ClassUtils.instantiateAs(config.get(TRANSFORMER_CLASS, IdentityTransformer.class.getName()),
+        RegexTransformer.class);
     String analyzerName = config.get(ANALYZER_NAME);
     if (analyzerName != null && transformer instanceof AnalyzerTransformer) {
       Analyzer analyzer = ClassUtils.instantiateAs(analyzerName, Analyzer.class);
       ((AnalyzerTransformer)transformer).setAnalyzer(analyzer);
     }
 
-    formatter = ClassUtils.instantiateAs(config.get(FORMATTER_CLASS, IdentityFormatter.class.getName()), RegexFormatter.class);
-
+    formatter = ClassUtils.instantiateAs(config.get(FORMATTER_CLASS, IdentityFormatter.class.getName()),
+        RegexFormatter.class);
   }
 
 

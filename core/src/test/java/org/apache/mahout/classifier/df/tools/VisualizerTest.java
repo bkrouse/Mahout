@@ -17,10 +17,10 @@
 
 package org.apache.mahout.classifier.df.tools;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import com.google.common.collect.Lists;
 import org.apache.mahout.classifier.df.DecisionForest;
 import org.apache.mahout.classifier.df.builder.DecisionTreeBuilder;
 import org.apache.mahout.classifier.df.data.Data;
@@ -82,8 +82,8 @@ public final class VisualizerTest extends MahoutTestCase {
     
     assertEquals(TreeVisualizer.toString(tree, data.getDataset(), ATTR_NAMES),
       "\noutlook = rainy\n|   windy = FALSE : yes\n|   windy = TRUE : no\n"
-        + "outlook = sunny\n|   humidity < 85 : yes\n|   humidity >= 85 : no\n"
-        + "outlook = overcast : yes");
+        + "outlook = overcast : yes\n"
+        + "outlook = sunny\n|   humidity < 85 : yes\n|   humidity >= 85 : no");
   }
   
   @Test
@@ -106,7 +106,7 @@ public final class VisualizerTest extends MahoutTestCase {
       new CategoricalNode(0, new double[] {0, 1, 2}, new Node[] {
         new NumericalNode(1, 71, new Leaf(0), new Leaf(1)), new Leaf(1),
         new Leaf(0)}));
-    List<Node> trees = new ArrayList<Node>();
+    List<Node> trees = Lists.newArrayList();
     trees.add(root);
     
     // Forest

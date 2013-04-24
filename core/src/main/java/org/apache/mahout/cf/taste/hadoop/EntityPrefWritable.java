@@ -25,7 +25,7 @@ import org.apache.mahout.common.RandomUtils;
 import org.apache.mahout.math.VarLongWritable;
 
 /** A {@link org.apache.hadoop.io.Writable} encapsulating an item ID and a preference value. */
-public final class EntityPrefWritable extends VarLongWritable {
+public final class EntityPrefWritable extends VarLongWritable implements Cloneable {
   
   private float prefValue;
   
@@ -50,11 +50,6 @@ public final class EntityPrefWritable extends VarLongWritable {
     return prefValue;
   }
 
-  public void set(long id, float prefValue) {
-    set(id);
-    this.prefValue = prefValue;
-  }
-  
   @Override
   public void write(DataOutput out) throws IOException {
     super.write(out);

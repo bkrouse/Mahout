@@ -41,13 +41,13 @@ import org.apache.lucene.util.Version;
  * stop words, excluding non-alpha-numeric tokens, and porter stemming.
  */
 public final class MailArchivesClusteringAnalyzer extends StopwordAnalyzerBase {
-  private static final Version LUCENE_VERSION = Version.LUCENE_41;
+  private static final Version LUCENE_VERSION = Version.LUCENE_42;
   
   // extended set of stop words composed of common mail terms like "hi",
   // HTML tags, and Java keywords asmany of the messages in the archives
   // are subversion check-in notifications
     
-private static CharArraySet stopSet = new CharArraySet(LUCENE_VERSION, Arrays.asList(
+  private static final CharArraySet STOP_SET = new CharArraySet(LUCENE_VERSION, Arrays.asList(
     "3d","7bit","a0","about","above","abstract","across","additional","after",
     "afterwards","again","against","align","all","almost","alone","along",
     "already","also","although","always","am","among","amongst","amoungst",
@@ -103,11 +103,11 @@ private static CharArraySet stopSet = new CharArraySet(LUCENE_VERSION, Arrays.as
   ), false);
 
   // Regex used to exclude non-alpha-numeric tokens
-  private static final Pattern alphaNumeric = Pattern.compile("^[a-z][a-z0-9_]+$");
-  private static final Matcher matcher = alphaNumeric.matcher("");
+  private static final Pattern ALPHA_NUMERIC = Pattern.compile("^[a-z][a-z0-9_]+$");
+  private static final Matcher MATCHER = ALPHA_NUMERIC.matcher("");
 
   public MailArchivesClusteringAnalyzer() {
-    super(LUCENE_VERSION, stopSet);
+    super(LUCENE_VERSION, STOP_SET);
   }
 
   public MailArchivesClusteringAnalyzer(CharArraySet stopSet) {
@@ -122,7 +122,7 @@ private static CharArraySet stopSet = new CharArraySet(LUCENE_VERSION, Arrays.as
     result = new LowerCaseFilter(LUCENE_VERSION, result);
     result = new ASCIIFoldingFilter(result);
     result = new AlphaNumericMaxLengthFilter(result);
-    result = new StopFilter(LUCENE_VERSION, result, stopSet);
+    result = new StopFilter(LUCENE_VERSION, result, STOP_SET);
     result = new PorterStemFilter(result);
     return new TokenStreamComponents(tokenizer, result);
   }
@@ -147,15 +147,15 @@ private static CharArraySet stopSet = new CharArraySet(LUCENE_VERSION, Arrays.as
         if (length >= 2 && length <= 28) {
           char[] buf = termAtt.buffer();
           int at = 0;
-          for (int c=0; c < length; c++) {
+          for (int c = 0; c < length; c++) {
             char ch = buf[c];
             if (ch != '\'') {
               output[at++] = ch;
             }
           }
           String term = new String(output, 0, at);
-          matcher.reset(term);
-          if (matcher.matches() && !term.startsWith("a0")) {
+          MATCHER.reset(term);
+          if (MATCHER.matches() && !term.startsWith("a0")) {
             termAtt.setEmpty();
             termAtt.append(term);
             return true;

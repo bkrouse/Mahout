@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.mahout.clustering.kernel.IKernelProfile;
 import org.apache.mahout.clustering.conversion.meanshift.InputDriver;
 import org.apache.mahout.clustering.meanshift.MeanShiftCanopyDriver;
 import org.apache.mahout.common.AbstractJob;
@@ -31,8 +32,7 @@ import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.commandline.DefaultOptionCreator;
 import org.apache.mahout.common.distance.DistanceMeasure;
 import org.apache.mahout.common.distance.EuclideanDistanceMeasure;
-import org.apache.mahout.common.kernel.IKernelProfile;
-import org.apache.mahout.common.kernel.TriangularKernelProfile;
+import org.apache.mahout.clustering.kernel.TriangularKernelProfile;
 import org.apache.mahout.utils.clustering.ClusterDumper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +43,8 @@ public final class Job extends AbstractJob {
   
   private static final String DIRECTORY_CONTAINING_CONVERTED_INPUT = "data";
   
-  private Job() {}
+  private Job() {
+  }
   
   public static void main(String[] args) throws Exception {
     if (args.length > 0) {
@@ -54,14 +55,13 @@ public final class Job extends AbstractJob {
       Path output = new Path("output");
       Configuration conf = new Configuration();
       HadoopUtil.delete(conf, output);
-      run(conf, new Path("testdata"), output,
-          new EuclideanDistanceMeasure(), new TriangularKernelProfile(), 47.6,
-          1, 0.5, 10);
+      run(conf, new Path("testdata"), output, new EuclideanDistanceMeasure(), new TriangularKernelProfile(), 47.6, 1,
+          0.5, 10);
     }
   }
   
   @Override
-  public int run(String[] args) throws Exception{
+  public int run(String[] args) throws Exception {
     addInputOption();
     addOutputOption();
     addOption(DefaultOptionCreator.convergenceOption().create());
@@ -133,7 +133,7 @@ public final class Job extends AbstractJob {
                          double t2,
                          double convergenceDelta,
                          int maxIterations)
-          throws Exception{
+    throws Exception {
     Path directoryContainingConvertedInput = new Path(output,
         DIRECTORY_CONTAINING_CONVERTED_INPUT);
     InputDriver.runJob(input, directoryContainingConvertedInput);

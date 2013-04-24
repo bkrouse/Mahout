@@ -17,13 +17,13 @@
 
 package org.apache.mahout.math;
 
+import java.util.Iterator;
+
 import org.apache.mahout.common.RandomUtils;
 import org.apache.mahout.math.function.DoubleDoubleFunction;
 import org.apache.mahout.math.function.DoubleFunction;
 import org.apache.mahout.math.function.Functions;
 import org.apache.mahout.math.set.OpenIntHashSet;
-
-import java.util.Iterator;
 
 /** Implementations of generic capabilities like sum of elements and dot products */
 public abstract class AbstractVector implements Vector, LengthCachingVector {
@@ -96,9 +96,9 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
   @Override
   public Vector divide(double x) {
     if (x == 1.0) {
-      return like().assign(this);
+      return clone();
     }
-    Vector result = like().assign(this);
+    Vector result = createOptimizedCopy();
     Iterator<Element> iter = result.iterateNonZero();
     while (iter.hasNext()) {
       Element element = iter.next();
@@ -113,7 +113,7 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
       throw new CardinalityException(size, x.size());
     }
     if (this == x) {
-      return dotSelf();
+      return getLengthSquared();
     }
 
     // Crude rule of thumb: when a sequential-access vector, with O(log n) lookups, has about
@@ -142,7 +142,44 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
         }
         reverseDot = reverseDotCost < dotCost;
       }
+    } else if (this.isSequentialAccess()  && !this.isDense() && x.isSequentialAccess() && !x.isDense()) {
+      Element thisElement = null;
+      Element thatElement = null;
+      boolean advanceThis = true;
+      boolean advanceThat = true;
+
+      Iterator<Element> thisNonZero = this.iterateNonZero();
+      Iterator<Element> thatNonZero = x.iterateNonZero();
+
+      double result = 0.0;
+      while (true) {
+        if (advanceThis) {
+          if (!thisNonZero.hasNext()) {
+            break;
+          }
+          thisElement = thisNonZero.next();
+        }
+        if (advanceThat) {
+          if (!thatNonZero.hasNext()) {
+            break;
+          }
+          thatElement = thatNonZero.next();
+        }
+        if (thisElement.index() == thatElement.index()) {
+          result += thisElement.get() * thatElement.get();
+          advanceThis = true;
+          advanceThat = true;
+        } else if (thisElement.index() < thatElement.index()) {
+          advanceThis = true;
+          advanceThat = false;
+        } else {
+          advanceThis = false;
+          advanceThat = true;
+        }
+      }
+      return result;
     }
+
 
     if (reverseDot) {
       return x.dot(this);
@@ -181,36 +218,8 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
   }
 
   @Override
-  public Vector minus(Vector that) {
-    if (size != that.size()) {
-      throw new CardinalityException(size, that.size());
-    }
-
-    // TODO: check the numNonDefault elements to further optimize
-    Vector result;
-    if (isDense()) {
-      result = like().assign(this);
-    } else {
-      result = like();
-      Iterator<Element> i = this.iterateNonZero();
-      while (i.hasNext()) {
-        final Element element = i.next();
-        result.setQuick(element.index(), element.get());
-      }
-    }
-
-    Iterator<Element> iter = that.iterateNonZero();
-    while (iter.hasNext()) {
-      Element thatElement = iter.next();
-      int index = thatElement.index();
-      result.setQuick(index, this.getQuick(index) - thatElement.get());
-    }
-    return result;
-  }
-
-  @Override
   public Vector normalize() {
-    return divide(Math.sqrt(dotSelf()));
+    return divide(Math.sqrt(getLengthSquared()));
   }
 
   @Override
@@ -220,7 +229,7 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
 
   @Override
   public Vector logNormalize() {
-    return logNormalize(2.0, Math.sqrt(dotSelf()));
+    return logNormalize(2.0, Math.sqrt(getLengthSquared()));
   }
 
   @Override
@@ -234,7 +243,7 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
       throw new IllegalArgumentException("Power must be > 1 and < infinity");
     } else {
       double denominator = normLength * Math.log(power);
-      Vector result = like().assign(this);
+      Vector result = createOptimizedCopy();
       Iterator<Element> iter = result.iterateNonZero();
       while (iter.hasNext()) {
         Element element = iter.next();
@@ -258,7 +267,7 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
       }
       return val;
     } else if (power == 2.0) {
-      return Math.sqrt(dotSelf());
+      return Math.sqrt(getLengthSquared());
     } else if (power == 1.0) {
       double val = 0.0;
       Iterator<Element> iter = this.iterateNonZero();
@@ -356,7 +365,7 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
    * @param v2  The vector that we access via iterateNonZero and via Element.get()
    * @return The squared difference between v1 and v2.
    */
-   static double randomScanDiff(Vector v1, Vector v2) {
+  static double randomScanDiff(Vector v1, Vector v2) {
     // keeps a list of elements we visited by iterating over v1.  This should be
     // almost all of the elements of v2 because we only call this method if the
     // difference is small.
@@ -464,7 +473,7 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
     }
 
     // one of i1 or i2 is exhausted here, but the other may not be
-    while (e1 != null ) {
+    while (e1 != null) {
       double x = e1.get();
       r += x * x;
 
@@ -579,13 +588,13 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
 
   @Override
   public Vector plus(double x) {
-    Vector result = like().assign(this);
+    Vector result = createOptimizedCopy();
     if (x == 0.0) {
       return result;
     }
     int size = result.size();
     for (int i = 0; i < size; i++) {
-      result.setQuick(i, getQuick(i) + x);
+      result.incrementQuick(i, x);
     }
     return result;
   }
@@ -596,17 +605,30 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
       throw new CardinalityException(size, x.size());
     }
 
-    // prefer to have this be the denser than x
-    if (!isDense() && (x.isDense() || x.getNumNondefaultElements() > this.getNumNondefaultElements())) {
-      return x.plus(this);
-    }
+    Vector result = createOptimizedCopy();
 
-    Vector result = like().assign(this);
     Iterator<Element> iter = x.iterateNonZero();
     while (iter.hasNext()) {
       Element e = iter.next();
       int index = e.index();
-      result.setQuick(index, this.getQuick(index) + e.get());
+      result.incrementQuick(index, e.get());
+    }
+    return result;
+  }
+
+  @Override
+  public Vector minus(Vector that) {
+    if (size != that.size()) {
+      throw new CardinalityException(size, that.size());
+    }
+
+    Vector result = createOptimizedCopy();
+
+    Iterator<Element> iter = that.iterateNonZero();
+    while (iter.hasNext()) {
+      Element thatElement = iter.next();
+      int index = thatElement.index();
+      result.incrementQuick(index, -thatElement.get());
     }
     return result;
   }
@@ -620,12 +642,18 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
   }
 
   @Override
+  public void incrementQuick(int index, double increment) {
+    setQuick(index, getQuick(index) + increment);
+  }
+
+  @Override
   public Vector times(double x) {
     if (x == 0.0) {
       return like();
     }
 
-    Vector result = like().assign(this);
+    Vector result = createOptimizedCopy();
+
     if (x == 1.0) {
       return result;
     }
@@ -639,6 +667,26 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
     return result;
   }
 
+  /**
+   * Copy the current vector in the most optimum fashion. Used by immutable methods like plus(), minus().
+   * Use this instead of vector.like().assign(vector). Sub-class can choose to override this method.
+   *
+   * @return a copy of the current vector.
+   */
+  protected Vector createOptimizedCopy() {
+    return createOptimizedCopy(this);
+  }
+
+  private Vector createOptimizedCopy(Vector v) {
+    Vector result;
+    if (isDense()) {
+      result = v.like().assign(v);
+    } else {
+      result = v.clone();
+    }
+    return result;
+  }
+
   @Override
   public Vector times(Vector x) {
     if (size != x.size()) {
@@ -648,12 +696,12 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
     Vector to = this;
     Vector from = x;
     // Clone and edit to the sparse one; if both are sparse, edit the more sparse one (more zeroes)
-    if (isDense() || (!x.isDense() && getNumNondefaultElements() > x.getNumNondefaultElements())) {
+    if (isDense() || !x.isDense() && getNumNondefaultElements() > x.getNumNondefaultElements()) {
       to = x;
       from = this;
     }
 
-    Vector result = to.like().assign(to);
+    Vector result = createOptimizedCopy(to);
     Iterator<Element> iter = result.iterateNonZero();
     while (iter.hasNext()) {
       Element element = iter.next();
@@ -672,6 +720,18 @@ public abstract class AbstractVector implements Vector, LengthCachingVector {
     }
 
     return result;
+  }
+
+  @Override
+  public int getNumNonZeroElements() {
+    int count = 0;
+    Iterator<Element> it = iterateNonZero();
+    while (it.hasNext()) {
+      if (it.next().get() != 0.0) {
+        count++;
+      }
+    }
+    return count;
   }
 
   @Override

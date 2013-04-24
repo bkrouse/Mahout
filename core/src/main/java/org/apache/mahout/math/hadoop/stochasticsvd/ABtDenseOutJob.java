@@ -27,7 +27,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.regex.Matcher;
 
-import org.apache.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
@@ -62,7 +62,7 @@ import org.apache.mahout.math.hadoop.stochasticsvd.qr.QRFirstStep;
  * reducer.
  */
 @SuppressWarnings("deprecation")
-public class ABtDenseOutJob {
+public final class ABtDenseOutJob {
 
   public static final String PROP_BT_PATH = "ssvd.Bt.path";
   public static final String PROP_BT_BROADCAST = "ssvd.Bt.broadcast";
@@ -347,8 +347,7 @@ public class ABtDenseOutJob {
    * 
    */
   public static class QRReducer
-      extends
-      Reducer<SplitPartitionedWritable, DenseBlockWritable, SplitPartitionedWritable, VectorWritable> {
+    extends Reducer<SplitPartitionedWritable, DenseBlockWritable, SplitPartitionedWritable, VectorWritable> {
 
     /*
      * HACK: partition number formats in hadoop, copied. this may stop working
@@ -476,12 +475,10 @@ public class ABtDenseOutJob {
      * @param <K>
      *          bogus
      */
-    private <K, V> OutputCollector<K, V>
-        createOutputCollector(String name,
+    private <K, V> OutputCollector<K, V> createOutputCollector(String name,
                               final SplitPartitionedWritable spw,
                               Context ctx,
-                              Class<V> valueClass) throws IOException,
-          InterruptedException {
+                              Class<V> valueClass) throws IOException, InterruptedException {
       Path outputPath = getSplitFilePath(name, spw, ctx);
       final SequenceFile.Writer w =
         SequenceFile.createWriter(FileSystem.get(outputPath.toUri(), ctx.getConfiguration()),

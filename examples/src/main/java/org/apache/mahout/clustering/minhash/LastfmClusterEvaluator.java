@@ -22,9 +22,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.HashSet;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
@@ -49,16 +49,16 @@ public final class LastfmClusterEvaluator {
    * Computer Jaccard coefficient over two sets. (A intersect B) / (A union B)
    */
   private static double computeSimilarity(Iterable<Integer> listenerVector1, Iterable<Integer> listenerVector2) {
-    Set<Integer> first = new HashSet<Integer>();
+    Set<Integer> first = Sets.newHashSet();
     for (Integer ele : listenerVector1) {
       first.add(ele);
     }
-    Collection<Integer> second = new HashSet<Integer>();
+    Collection<Integer> second = Sets.newHashSet();
     for (Integer ele : listenerVector2) {
       second.add(ele);
     }
 
-    Collection<Integer> intersection = new HashSet<Integer>(first);
+    Collection<Integer> intersection = Sets.newHashSet();
     intersection.retainAll(second);
     double intersectSize = intersection.size();
 
@@ -95,8 +95,8 @@ public final class LastfmClusterEvaluator {
     long similarListeners = 0;
     long allListeners = 0;
     int clustersProcessed = 0;
-    for (Pair<Text,VectorWritable> record :
-         new SequenceFileIterable<Text,VectorWritable>(clusterFile, true, conf)) {
+    for (Pair<Text,VectorWritable> record
+        : new SequenceFileIterable<Text,VectorWritable>(clusterFile, true, conf)) {
       Text cluster = record.getFirst();
       VectorWritable point = record.getSecond();
       if (!cluster.equals(prevCluster)) {

@@ -20,7 +20,6 @@ package org.apache.mahout.fpm.pfpgrowth;
 import java.io.File;
 import java.io.Writer;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,7 @@ import java.util.Set;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.Parameters;
@@ -113,7 +113,7 @@ public final class PFPGrowthRetailDataTestVs extends MahoutTestCase {
       Iterator<Pair<List<String>,Long>> topKIt = topK.getSecond().iterator();
       while (topKIt.hasNext()) {
         Pair<List<String>,Long> entry = topKIt.next();
-        results1.put(new HashSet<String>(entry.getFirst()), entry.getSecond());
+        results1.put(Sets.newHashSet(entry.getFirst()), entry.getSecond());
       }
     }
   
@@ -125,7 +125,7 @@ public final class PFPGrowthRetailDataTestVs extends MahoutTestCase {
       Iterator<Pair<List<String>,Long>> topKIt = topK.getSecond().iterator();
       while (topKIt.hasNext()) {
         Pair<List<String>,Long> entry = topKIt.next();
-        results2.put(new HashSet<String>(entry.getFirst()), entry.getSecond());
+        results2.put(Sets.newHashSet(entry.getFirst()), entry.getSecond());
       }
     }
   

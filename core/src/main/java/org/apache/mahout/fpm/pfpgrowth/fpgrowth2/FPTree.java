@@ -202,22 +202,6 @@ public final class FPTree {
       }
       currNode = next;
     }
-  } 
-
-
-  /**
-   * Returns an Iterable over the attributes in the tree, sorted by
-   * frequency (low to high).
-   */
-  public Iterable<Integer> attrIterable() {
-    List<Integer> attrs = Lists.newArrayList();
-    for (int i = 0; i < attrCountList.size(); i++) {
-      if (attrCountList.get(i) > 0) {
-        attrs.add(i);
-      }
-    }
-    Collections.sort(attrs, attrComparator);
-    return attrs;
   }
 
   /**
@@ -335,7 +319,7 @@ public final class FPTree {
     int attribute = node.attribute();
     if (items == null) {
       // at root
-      if (!(node == root)) {
+      if (node != root) {
         throw new IllegalStateException();
       }
       items = new IntArrayList();
@@ -352,7 +336,7 @@ public final class FPTree {
       qTree.accumulate(items, toAdd);
       added += toAdd;
     }
-    if (!(node == root)) {
+    if (node != root) {
       int lastIdx = items.size() - 1;
       if (items.get(lastIdx) != attribute) {
         throw new IllegalStateException();

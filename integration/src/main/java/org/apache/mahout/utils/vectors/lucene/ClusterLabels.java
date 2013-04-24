@@ -23,12 +23,12 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.Sets;
 import org.apache.lucene.util.BytesRef;
 import com.google.common.base.Charsets;
 import com.google.common.io.Closeables;
@@ -88,8 +88,8 @@ public class ClusterLabels {
   private String idField;
   private final Map<Integer, List<WeightedVectorWritable>> clusterIdToPoints;
   private String output;
-  private int minNumIds;
-  private int maxLabels;
+  private final int minNumIds;
+  private final int maxLabels;
 
   public ClusterLabels(Path seqFileDir,
                        Path pointsDir,
@@ -109,7 +109,7 @@ public class ClusterLabels {
 
     Writer writer;
     if (this.output == null) {
-      writer = new OutputStreamWriter(System.out);
+      writer = new OutputStreamWriter(System.out, Charsets.UTF_8);
     } else {
       writer = Files.newWriter(new File(this.output), Charsets.UTF_8);
     }
@@ -162,7 +162,7 @@ public class ClusterLabels {
     
     log.info("# of documents in the index {}", reader.numDocs());
 
-    Collection<String> idSet = new HashSet<String>();
+    Collection<String> idSet = Sets.newHashSet();
     for (WeightedVectorWritable wvw : wvws) {
       Vector vector = wvw.getVector();
       if (vector instanceof NamedVector) {
@@ -196,9 +196,10 @@ public class ClusterLabels {
     while ((term = te.next()) != null) {
       OpenBitSet termBitset = new OpenBitSet(reader.maxDoc());
       DocsEnum docsEnum = MultiFields.getTermDocsEnum(reader, null, contentField, term);
-      int docID = 0;
+      int docID;
       while ((docID = docsEnum.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-        if (liveDocs != null && !liveDocs.get(docID)) { //check to see if we don't have an deletions (null) or if document is live
+        //check to see if we don't have an deletions (null) or if document is live
+        if (liveDocs != null && !liveDocs.get(docID)) {
           // document is deleted...
           termBitset.set(docsEnum.docID());
         }
@@ -243,9 +244,9 @@ public class ClusterLabels {
 
     OpenBitSet bitset = new OpenBitSet(numDocs);
     
-    Set<String>  idFieldSelector= null;
-    if(idField !=null){
-      idFieldSelector= new TreeSet<String>();
+    Set<String>  idFieldSelector = null;
+    if (idField != null) {
+      idFieldSelector = new TreeSet<String>();
       idFieldSelector.add(idField);
     }
     

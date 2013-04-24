@@ -17,10 +17,10 @@
 
 package org.apache.mahout.fpm.pfpgrowth.fpgrowth;
 
-import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
 
+import com.google.common.collect.Sets;
 import org.apache.mahout.math.map.OpenLongObjectHashMap;
 
 /**  keeps top K Attributes in a TreeSet */
@@ -42,7 +42,7 @@ public final class FrequentPatternMaxHeap {
       Long index = p.support();
       Set<Pattern> patternList;
       if (!patternIndex.containsKey(index)) {
-        patternList = new HashSet<Pattern>();
+        patternList = Sets.newHashSet();
         patternIndex.put(index, patternList);
       }
       patternList = patternIndex.get(index);
@@ -151,7 +151,7 @@ public final class FrequentPatternMaxHeap {
         queue.add(frequentPattern);
         Set<Pattern> patternList;
         if (!patternIndex.containsKey(index)) {
-          patternList = new HashSet<Pattern>();
+          patternList = Sets.newHashSet();
           patternIndex.put(index, patternList);
         }
         patternList = patternIndex.get(index);

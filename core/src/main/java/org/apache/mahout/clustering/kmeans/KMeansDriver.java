@@ -17,9 +17,9 @@
 package org.apache.mahout.clustering.kmeans;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ToolRunner;
@@ -142,7 +142,8 @@ public class KMeansDriver extends AbstractJob {
     if (log.isInfoEnabled()) {
       log.info("Input: {} Clusters In: {} Out: {} Distance: {}", input, clustersIn, output,
                measure.getClass().getName());
-      log.info("convergence: {} max Iterations: {} num Reduce Tasks: {} Input Vectors: {}", convergenceDelta, maxIterations, VectorWritable.class.getName());
+      log.info("convergence: {} max Iterations: {} num Reduce Tasks: {} Input Vectors: {}", convergenceDelta,
+          maxIterations, VectorWritable.class.getName());
     }
     Path clustersOut = buildClusters(conf, input, clustersIn, output, measure, maxIterations, delta, runSequential);
     if (runClustering) {
@@ -177,7 +178,7 @@ public class KMeansDriver extends AbstractJob {
    */
   public static void run(Path input, Path clustersIn, Path output, DistanceMeasure measure, double convergenceDelta,
       int maxIterations, boolean runClustering, double clusterClassificationThreshold, boolean runSequential)
-      throws IOException, InterruptedException, ClassNotFoundException {
+    throws IOException, InterruptedException, ClassNotFoundException {
     run(new Configuration(), input, clustersIn, output, measure, convergenceDelta, maxIterations, runClustering,
         clusterClassificationThreshold, runSequential);
   }
@@ -209,7 +210,7 @@ public class KMeansDriver extends AbstractJob {
       InterruptedException, ClassNotFoundException {
     
     double convergenceDelta = Double.parseDouble(delta);
-    List<Cluster> clusters = new ArrayList<Cluster>();
+    List<Cluster> clusters = Lists.newArrayList();
     KMeansUtil.configureWithClusterInfo(conf, clustersIn, clusters);
     
     if (clusters.isEmpty()) {

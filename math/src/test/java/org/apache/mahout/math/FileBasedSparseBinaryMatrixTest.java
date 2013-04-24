@@ -17,23 +17,25 @@
 
 package org.apache.mahout.math;
 
-import org.apache.mahout.common.RandomUtils;
-import org.junit.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 
+import org.apache.mahout.common.RandomUtils;
+import org.junit.Test;
+
 public class FileBasedSparseBinaryMatrixTest extends MahoutTestCase {
+
+  /*
   // 10 million rows x 40 columns x 8 bytes = 3.2GB of data
   // we need >2GB to stress the file based matrix implementation
   private static final int ROWS = 10 * 1000 * 1000;
   private static final int COLUMNS = 1000;
 
-  // @Test
+  @Test
   public void testBigMatrix() throws IOException {
     // only run this test if -DrunSlowTests is used.  Also requires 4GB or more of heap.
-//    assumeNotNull(System.getProperty("runSlowTests"));
+    // assumeNotNull(System.getProperty("runSlowTests"));
 
     Matrix m0 = new SparseRowMatrix(ROWS, COLUMNS);
     Random gen = RandomUtils.getRandom();
@@ -60,6 +62,7 @@ public class FileBasedSparseBinaryMatrixTest extends MahoutTestCase {
   private static int matrixValue(int i) {
     return (i * 88513) % 10000;
   }
+   */
 
   @Test
   public void testSetData() throws IOException {
@@ -78,7 +81,7 @@ public class FileBasedSparseBinaryMatrixTest extends MahoutTestCase {
     FileBasedSparseBinaryMatrix.writeMatrix(f, m0);
 
     FileBasedSparseBinaryMatrix m = new FileBasedSparseBinaryMatrix(10, 21);
-    m.setData(f, true);
+    m.setData(f);
 
     for (MatrixSlice row : m) {
       Vector diff = row.vector().minus(m0.viewRow(row.index()));
@@ -89,6 +92,4 @@ public class FileBasedSparseBinaryMatrixTest extends MahoutTestCase {
       assertEquals(0, error, 1.0e-14);
     }
   }
-
-
 }

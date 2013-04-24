@@ -18,10 +18,10 @@
 package org.apache.mahout.math;
 
 
+import java.util.Iterator;
+
 import org.apache.mahout.math.function.DoubleDoubleFunction;
 import org.apache.mahout.math.function.DoubleFunction;
-
-import java.util.Iterator;
 
 /**
  * The basic interface including numerous convenience functions <p/> NOTE: All implementing classes must have a
@@ -78,7 +78,8 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
   Vector assign(Vector other, DoubleDoubleFunction function);
 
   /**
-   * Apply the function to each element of the receiver, using the y value as the second argument of the DoubleDoubleFunction
+   * Apply the function to each element of the receiver, using the y value as the second argument of the
+   * DoubleDoubleFunction
    *
    * @param f a DoubleDoubleFunction to be applied
    * @param y a double value to be argument to the function
@@ -223,7 +224,7 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
    * @return a new Vector x such that norm(x, power) == 1
    */
   Vector normalize(double power);
-  
+
   /**
    * Return a new vector containing the log(1 + entry)/ L_2 norm  values of the recipient
    *
@@ -297,12 +298,27 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
   void setQuick(int index, double value);
 
   /**
+   * Increment the value at the given index by the given value.
+   *
+   * @param index an int index into the receiver
+   * @param increment sets the value at the given index to value + increment;
+   */
+  void incrementQuick(int index, double increment);
+
+  /**
    * Return the number of values in the recipient which are not the default value.  For instance, for a
    * sparse vector, this would be the number of non-zero values.
    *
    * @return an int
    */
   int getNumNondefaultElements();
+
+  /**
+   * Return the number of non zero elements in the vector.
+   *
+   * @return an int
+   */
+  int getNumNonZeroElements();
 
   /**
    * Return a new vector containing the product of each value of the recipient and the argument
@@ -359,7 +375,7 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
   /**
    * Examples speak louder than words:  aggregate(plus, pow(2)) is another way to say
    * getLengthSquared(), aggregate(max, abs) is norm(Double.POSITIVE_INFINITY).  To sum all of the postive values,
-   * aggregate(plus, max(0)).  
+   * aggregate(plus, max(0)).
    * @param aggregator used to combine the current value of the aggregation with the result of map.apply(nextValue)
    * @param map a function to apply to each element of the vector in turn before passing to the aggregator
    * @return the final aggregation

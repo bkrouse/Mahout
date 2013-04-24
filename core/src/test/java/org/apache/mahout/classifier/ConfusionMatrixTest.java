@@ -17,11 +17,11 @@
 
 package org.apache.mahout.classifier;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
+import com.google.common.collect.Lists;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.math.Matrix;
 import org.junit.Test;
@@ -81,7 +81,7 @@ public final class ConfusionMatrixTest extends MahoutTestCase {
   }
   
   private static ConfusionMatrix fillCM(int[][] values, String[] labels, String defaultLabel) {
-    Collection<String> labelList = new ArrayList<String>();
+    Collection<String> labelList = Lists.newArrayList();
     labelList.add(labels[0]);
     labelList.add(labels[1]);
     ConfusionMatrix cm = new ConfusionMatrix(labelList, defaultLabel);

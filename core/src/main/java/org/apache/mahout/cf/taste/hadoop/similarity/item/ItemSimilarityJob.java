@@ -35,10 +35,10 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
-import org.apache.mahout.cf.taste.common.TopK;
 import org.apache.mahout.cf.taste.hadoop.EntityEntityWritable;
 import org.apache.mahout.cf.taste.hadoop.TasteHadoopUtils;
 import org.apache.mahout.cf.taste.hadoop.preparation.PreparePreferenceMatrixJob;
+import org.apache.mahout.cf.taste.similarity.precompute.SimilarItem;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.math.Vector;
@@ -65,13 +65,16 @@ import org.apache.mahout.math.map.OpenIntLongHashMap;
  * <p>Command line arguments specific to this class are:</p>
  *
  * <ol>
- * <li>-Dmapred.input.dir=(path): Directory containing one or more text files with the preference data</li>
- * <li>-Dmapred.output.dir=(path): output path where similarity data should be written</li>
- * <li>--similarityClassname (classname): Name of distributed similarity measure class to instantiate or a predefined similarity
- *  from {@link org.apache.mahout.math.hadoop.similarity.cooccurrence.measures.VectorSimilarityMeasure}</li>
+ * <li>--input (path): Directory containing one or more text files with the preference data</li>
+ * <li>--output (path): output path where similarity data should be written</li>
+ * <li>--similarityClassname (classname): Name of distributed similarity measure class to instantiate or a predefined
+ *  similarity from {@link org.apache.mahout.math.hadoop.similarity.cooccurrence.measures.VectorSimilarityMeasure}</li>
  * <li>--maxSimilaritiesPerItem (integer): Maximum number of similarities considered per item (100)</li>
- * <li>--maxCooccurrencesPerItem (integer): Maximum number of cooccurrences considered per item (100)</li>
+ * <li>--maxPrefsPerUser (integer): max number of preferences to consider per user, users with more preferences will
+ *  be sampled down (1000)</li>
+ * <li>--minPrefsPerUser (integer): ignore users with less preferences than this (1)</li>
  * <li>--booleanData (boolean): Treat input data as having no pref values (false)</li>
+ * <li>--threshold (double): discard item pairs with a similarity value below this</li>
  * </ol>
  *
  * <p>General command line options are documented in {@link AbstractJob}.</p>
@@ -120,8 +123,8 @@ public final class ItemSimilarityJob extends AbstractJob {
     int minPrefsPerUser = Integer.parseInt(getOption("minPrefsPerUser"));
     boolean booleanData = Boolean.valueOf(getOption("booleanData"));
 
-    double threshold = hasOption("threshold") ?
-        Double.parseDouble(getOption("threshold")) : RowSimilarityJob.NO_THRESHOLD;
+    double threshold = hasOption("threshold")
+        ? Double.parseDouble(getOption("threshold")) : RowSimilarityJob.NO_THRESHOLD;
 
     Path similarityMatrixPath = getTempPath("similarityMatrix");
     Path prepPath = getTempPath("prepareRatingMatrix");
@@ -193,18 +196,22 @@ public final class ItemSimilarityJob extends AbstractJob {
 
       int itemIDIndex = itemIDIndexWritable.get();
 
-      TopK<SimilarItem> topKMostSimilarItems =
-          new TopK<SimilarItem>(maxSimilarItemsPerItem, SimilarItem.COMPARE_BY_SIMILARITY);
+      TopSimilarItemsQueue topKMostSimilarItems = new TopSimilarItemsQueue(maxSimilarItemsPerItem);
 
       Iterator<Vector.Element> similarityVectorIterator = similarityVector.get().iterateNonZero();
 
       while (similarityVectorIterator.hasNext()) {
         Vector.Element element = similarityVectorIterator.next();
-        topKMostSimilarItems.offer(new SimilarItem(indexItemIDMap.get(element.index()), element.get()));
+        SimilarItem top = topKMostSimilarItems.top();
+        double candidateSimilarity = element.get();
+        if (candidateSimilarity > top.getSimilarity()) {
+          top.set(indexItemIDMap.get(element.index()), candidateSimilarity);
+          topKMostSimilarItems.updateTop();
+        }
       }
 
       long itemID = indexItemIDMap.get(itemIDIndex);
-      for (SimilarItem similarItem : topKMostSimilarItems.retrieve()) {
+      for (SimilarItem similarItem : topKMostSimilarItems.getTopItems()) {
         long otherItemID = similarItem.getItemID();
         if (itemID < otherItemID) {
           ctx.write(new EntityEntityWritable(itemID, otherItemID), new DoubleWritable(similarItem.getSimilarity()));

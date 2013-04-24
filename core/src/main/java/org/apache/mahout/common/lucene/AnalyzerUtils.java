@@ -17,57 +17,45 @@ package org.apache.mahout.common.lucene;
  */
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.util.Version;
 import org.apache.mahout.common.ClassUtils;
 
-/**
- *
- *
- **/
-public class AnalyzerUtils {
+public final class AnalyzerUtils {
+
+  private AnalyzerUtils() {}
 
   /**
-   * Create an Analyzer using the latest {@link org.apache.lucene.util.Version}.  Note, if you need to pass in parameters
-   * to your constructor, you will need to wrap it in an implementation that does not take any arguments
+   * Create an Analyzer using the latest {@link org.apache.lucene.util.Version}.  Note, if you need to pass in
+   * parameters to your constructor, you will need to wrap it in an implementation that does not take any arguments
    * @param analyzerClassName - Lucene Analyzer Name
    * @return {@link Analyzer}
    * @throws ClassNotFoundException - {@link ClassNotFoundException}
    */
   public static Analyzer createAnalyzer(String analyzerClassName) throws ClassNotFoundException {
-    return createAnalyzer(analyzerClassName, Version.LUCENE_41);
+    return createAnalyzer(analyzerClassName, Version.LUCENE_42);
   }
 
   public static Analyzer createAnalyzer(String analyzerClassName, Version version) throws ClassNotFoundException {
     Class<? extends Analyzer> analyzerClass = Class.forName(analyzerClassName).asSubclass(Analyzer.class);
-    //TODO: GSI: Not sure I like this, many analyzers in Lucene take in the version
-
     return createAnalyzer(analyzerClass, version);
   }
 
   /**
-   * Create an Analyzer using the latest {@link org.apache.lucene.util.Version}.  Note, if you need to pass in parameters
-   * to your constructor, you will need to wrap it in an implementation that does not take any arguments
+   * Create an Analyzer using the latest {@link org.apache.lucene.util.Version}.  Note, if you need to pass in
+   * parameters to your constructor, you will need to wrap it in an implementation that does not take any arguments
    * @param analyzerClass The Analyzer Class to instantiate
    * @return {@link Analyzer}
    */
-  public static Analyzer createAnalyzer(Class<? extends Analyzer> analyzerClass){
-    return createAnalyzer(analyzerClass, Version.LUCENE_41);
+  public static Analyzer createAnalyzer(Class<? extends Analyzer> analyzerClass) {
+    return createAnalyzer(analyzerClass, Version.LUCENE_42);
   }
 
-  public static Analyzer createAnalyzer(Class<? extends Analyzer> analyzerClass, Version version){
-    Analyzer analyzer;
-    if (analyzerClass == StandardAnalyzer.class) {
-      Class<?>[] params = new Class<?>[1];
-      params[0] = Version.class;
-      Object[] args = new Object[1];
-      args[0] = version;
-      analyzer = ClassUtils.instantiateAs(analyzerClass,
-              Analyzer.class, params, args);
-
-    } else {
-      analyzer = ClassUtils.instantiateAs(analyzerClass, Analyzer.class);
+  public static Analyzer createAnalyzer(Class<? extends Analyzer> analyzerClass, Version version) {
+    try {
+      return ClassUtils.instantiateAs(analyzerClass, Analyzer.class,
+          new Class<?>[] { Version.class }, new Object[] { version });
+    } catch (IllegalStateException e) {
+      return ClassUtils.instantiateAs(analyzerClass, Analyzer.class);
     }
-    return analyzer;
   }
 }

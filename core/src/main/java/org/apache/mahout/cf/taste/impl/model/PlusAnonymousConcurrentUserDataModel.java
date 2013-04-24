@@ -18,12 +18,13 @@
 package org.apache.mahout.cf.taste.impl.model;
 
 import com.google.common.base.Preconditions;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import com.google.common.collect.Lists;
 import org.apache.mahout.cf.taste.common.NoSuchItemException;
 import org.apache.mahout.cf.taste.common.TasteException;
 import org.apache.mahout.cf.taste.impl.common.FastIDSet;
@@ -31,6 +32,8 @@ import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.model.Preference;
 import org.apache.mahout.cf.taste.model.PreferenceArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>
@@ -89,6 +92,8 @@ public final class PlusAnonymousConcurrentUserDataModel extends PlusAnonymousUse
   private final Map<Long,FastIDSet> prefItemIDs;
   /** Pool of the users (FIFO) */
   private Queue<Long> usersPool;
+
+  private static final Logger log = LoggerFactory.getLogger(PlusAnonymousUserDataModel.class);
 
   /**
    * @param delegate Real model where anonymous users will be added to
@@ -212,9 +217,12 @@ public final class PlusAnonymousConcurrentUserDataModel extends PlusAnonymousUse
       delegatePrefs = getDelegate().getPreferencesForItem(itemID);
     } catch (NoSuchItemException nsie) {
       // OK. Probably an item that only the anonymous user has
+      if (log.isDebugEnabled()) {
+        log.debug("Item {} unknown", itemID);
+      }
     }
 
-    List<Preference> anonymousPreferences = new ArrayList<Preference>();
+    List<Preference> anonymousPreferences = Lists.newArrayList();
 
     for (Map.Entry<Long, PreferenceArray> prefsMap : tempPrefs.entrySet()) {
       PreferenceArray singleUserTempPrefs = prefsMap.getValue();

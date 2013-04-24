@@ -65,13 +65,11 @@ public final class ClusterDumper extends AbstractJob {
     GRAPH_ML,
   }
 
-  public static final String OUTPUT_OPTION = "output";
   public static final String DICTIONARY_TYPE_OPTION = "dictionaryType";
   public static final String DICTIONARY_OPTION = "dictionary";
   public static final String POINTS_DIR_OPTION = "pointsDir";
   public static final String NUM_WORDS_OPTION = "numWords";
   public static final String SUBSTRING_OPTION = "substring";
-  public static final String SEQ_FILE_DIR_OPTION = "seqFileDir";
   public static final String EVALUATE_CLUSTERS = "evaluate";
 
   public static final String OUTPUT_FORMAT_OPT = "outputFormat";
@@ -106,18 +104,23 @@ public final class ClusterDumper extends AbstractJob {
   public int run(String[] args) throws Exception {
     addInputOption();
     addOutputOption();
-    addOption(OUTPUT_FORMAT_OPT, "of", "The optional output format to write the results as.  Options: TEXT, CSV or GRAPH_ML", "TEXT");
+    addOption(OUTPUT_FORMAT_OPT, "of", "The optional output format for the results.  Options: TEXT, CSV or GRAPH_ML",
+        "TEXT");
     addOption(SUBSTRING_OPTION, "b", "The number of chars of the asFormatString() to print");
     addOption(NUM_WORDS_OPTION, "n", "The number of top terms to print");
     addOption(POINTS_DIR_OPTION, "p",
             "The directory containing points sequence files mapping input vectors to their cluster.  "
                     + "If specified, then the program will output the points associated with a cluster");
-    addOption(SAMPLE_POINTS, "sp", "Specifies the maximum number of points to include _per_ cluster.  The default is to include all points");
+    addOption(SAMPLE_POINTS, "sp", "Specifies the maximum number of points to include _per_ cluster.  The default "
+        + "is to include all points");
     addOption(DICTIONARY_OPTION, "d", "The dictionary file");
     addOption(DICTIONARY_TYPE_OPTION, "dt", "The dictionary file type (text|sequencefile)", "text");
-    addOption(buildOption(EVALUATE_CLUSTERS, "e", "Run ClusterEvaluator and CDbwEvaluator over the input.  The output will be appended to the rest of the output at the end.", false, false, null));
+    addOption(buildOption(EVALUATE_CLUSTERS, "e", "Run ClusterEvaluator and CDbwEvaluator over the input.  "
+        + "The output will be appended to the rest of the output at the end.", false, false, null));
     addOption(DefaultOptionCreator.distanceMeasureOption().create());
-    if (parseArguments(args) == null) {
+
+    // output is optional, will print to System.out per default
+    if (parseArguments(args, false, true) == null) {
       return -1;
     }
 
@@ -171,7 +174,7 @@ public final class ClusterDumper extends AbstractJob {
     boolean shouldClose;
     if (this.outputFile == null) {
       shouldClose = false;
-      writer = new OutputStreamWriter(System.out);
+      writer = new OutputStreamWriter(System.out, Charsets.UTF_8);
     } else {
       shouldClose = true;
       if (outputFile.getName().startsWith("s3n://")) {
@@ -179,24 +182,25 @@ public final class ClusterDumper extends AbstractJob {
         FileSystem fs = FileSystem.get(p.toUri(), conf);
         writer = new OutputStreamWriter(fs.create(p), Charsets.UTF_8);
       } else {
-    	Files.createParentDirs(outputFile);
+        Files.createParentDirs(outputFile);
         writer = Files.newWriter(this.outputFile, Charsets.UTF_8);
       }
     }
     ClusterWriter clusterWriter = createClusterWriter(writer, dictionary);
     try {
-      long numWritten = clusterWriter.write(new SequenceFileDirValueIterable<ClusterWritable>(new Path(seqFileDir, "part-*"), PathType.GLOB, conf));
+      long numWritten = clusterWriter.write(new SequenceFileDirValueIterable<ClusterWritable>(new Path(seqFileDir,
+          "part-*"), PathType.GLOB, conf));
 
       writer.flush();
       if (runEvaluation) {
         HadoopUtil.delete(conf, new Path("tmp/representative"));
         int numIters = 5;
         RepresentativePointsDriver.main(new String[]{
-                "--input", seqFileDir.toString(),
-                "--output", "tmp/representative",
-                "--clusteredPoints", pointsDir.toString(),
-                "--distanceMeasure", measure.getClass().getName(),
-                "--maxIter", String.valueOf(numIters)//
+          "--input", seqFileDir.toString(),
+          "--output", "tmp/representative",
+          "--clusteredPoints", pointsDir.toString(),
+          "--distanceMeasure", measure.getClass().getName(),
+          "--maxIter", String.valueOf(numIters)
         });
         conf.set(RepresentativePointsDriver.DISTANCE_MEASURE_KEY, measure.getClass().getName());
         conf.set(RepresentativePointsDriver.STATE_IN_KEY, "tmp/representative/representativePoints-" + numIters);
@@ -223,7 +227,7 @@ public final class ClusterDumper extends AbstractJob {
   }
 
   ClusterWriter createClusterWriter(Writer writer, String[] dictionary) throws IOException {
-    ClusterWriter result = null;
+    ClusterWriter result;
 
     switch (outputFormat) {
       case TEXT:
@@ -235,6 +239,8 @@ public final class ClusterDumper extends AbstractJob {
       case GRAPH_ML:
         result = new GraphMLClusterWriter(writer, clusterIdToPoints, measure, numTopFeatures, dictionary, subString);
         break;
+      default:
+        throw new IllegalStateException("Unknown outputformat: " + outputFormat);
     }
     return result;
   }
@@ -287,11 +293,12 @@ public final class ClusterDumper extends AbstractJob {
     this.maxPointsPerCluster = maxPointsPerCluster;
   }
 
-  public static Map<Integer, List<WeightedVectorWritable>> readPoints(Path pointsPathDir, long maxPointsPerCluster, Configuration conf) {
+  public static Map<Integer, List<WeightedVectorWritable>> readPoints(Path pointsPathDir, long maxPointsPerCluster,
+      Configuration conf) {
     Map<Integer, List<WeightedVectorWritable>> result = new TreeMap<Integer, List<WeightedVectorWritable>>();
-    for (Pair<IntWritable, WeightedVectorWritable> record :
-            new SequenceFileDirIterable<IntWritable, WeightedVectorWritable>(
-                    pointsPathDir, PathType.LIST, PathFilters.logsCRCFilter(), conf)) {
+    for (Pair<IntWritable, WeightedVectorWritable> record
+        : new SequenceFileDirIterable<IntWritable, WeightedVectorWritable>(pointsPathDir, PathType.LIST,
+            PathFilters.logsCRCFilter(), conf)) {
       // value is the cluster id as an int, key is the name/id of the
       // vector, but that doesn't matter because we only care about printing
       // it

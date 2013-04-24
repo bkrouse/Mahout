@@ -17,32 +17,49 @@
 
 package org.apache.mahout.math.random;
 
+import com.google.common.base.Preconditions;
+import org.apache.mahout.common.RandomUtils;
+
 /**
  * Handy for creating multinomial distributions of things.
  */
 public final class WeightedThing<T> implements Comparable<WeightedThing<T>> {
-    private double weight;
-    private final T value;
+  private double weight;
+  private final T value;
 
-    public WeightedThing(T thing, double weight) {
-        this.value = thing;
-        this.weight = weight;
-    }
+  public WeightedThing(T thing, double weight) {
+    this.value = Preconditions.checkNotNull(thing);
+    this.weight = weight;
+  }
 
-    public T getValue() {
-        return value;
-    }
+  public T getValue() {
+    return value;
+  }
 
-    public double getWeight() {
-        return weight;
-    }
+  public double getWeight() {
+    return weight;
+  }
 
-    public void setWeight(double weight) {
-        this.weight = weight;
-    }
+  public void setWeight(double weight) {
+    this.weight = weight;
+  }
 
-    @Override
-    public int compareTo(WeightedThing<T> other) {
-        return Double.compare(this.weight, other.weight);
+  @Override
+  public int compareTo(WeightedThing<T> other) {
+    return Double.compare(this.weight, other.weight);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof WeightedThing) {
+      WeightedThing<T> other = (WeightedThing<T>) o;
+      return weight == other.weight && value.equals(other.value);
     }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return 31 * RandomUtils.hashDouble(weight) + value.hashCode();
+  }
 }

@@ -19,14 +19,14 @@ package org.apache.mahout.text.wikipedia;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DefaultStringifier;
 import org.apache.hadoop.io.LongWritable;
@@ -63,7 +63,7 @@ public class WikipediaDatasetCreatorMapper extends Mapper<LongWritable, Text, Te
   @Override
   protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
     String document = value.toString();
-    document = StringEscapeUtils.unescapeHtml(CLOSE_TEXT_TAG_PATTERN.matcher(
+    document = StringEscapeUtils.unescapeHtml4(CLOSE_TEXT_TAG_PATTERN.matcher(
         OPEN_TEXT_TAG_PATTERN.matcher(document).replaceFirst("")).replaceAll(""));
     String catMatch = findMatchingCategory(document);
     if (!"Unknown".equals(catMatch)) {
@@ -89,7 +89,7 @@ public class WikipediaDatasetCreatorMapper extends Mapper<LongWritable, Text, Te
     Configuration conf = context.getConfiguration();
 
     if (inputCategories == null) {
-      Set<String> newCategories = new HashSet<String>();
+      Set<String> newCategories = Sets.newHashSet();
       DefaultStringifier<Set<String>> setStringifier =
           new DefaultStringifier<Set<String>>(conf, GenericsUtil.getClass(newCategories));
       String categoriesStr = conf.get("wikipedia.categories", setStringifier.toString(newCategories));

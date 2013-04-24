@@ -19,13 +19,13 @@ package org.apache.mahout.common;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.commons.cli2.CommandLine;
 import org.apache.commons.cli2.Group;
@@ -316,8 +316,10 @@ public abstract class AbstractJob extends Configured implements Tool {
   /**
    *
    * @param args  The args to parse
-   * @param inputOptional if false, then the input option, if set, need not be present.  If true and input is an option and there is no input, then throw an error
-   * @param outputOptional if false, then the output option, if set, need not be present.  If true and output is an option and there is no output, then throw an error
+   * @param inputOptional if false, then the input option, if set, need not be present.  If true and input is an option
+   *                      and there is no input, then throw an error
+   * @param outputOptional if false, then the output option, if set, need not be present.  If true and output is an
+   *                       option and there is no output, then throw an error
    * @return the args parsed into a map.
    */
   public Map<String, List<String>> parseArguments(String[] args, boolean inputOptional, boolean outputOptional)
@@ -496,13 +498,13 @@ public abstract class AbstractJob extends Configured implements Tool {
 
       // the option appeared on the command-line, or it has a value
       // (which is likely a default value). 
-      if (cmdLine.hasOption(o) || cmdLine.getValue(o) != null ||
-          (cmdLine.getValues(o) != null && !cmdLine.getValues(o).isEmpty())) {
+      if (cmdLine.hasOption(o) || cmdLine.getValue(o) != null
+          || (cmdLine.getValues(o) != null && !cmdLine.getValues(o).isEmpty())) {
 
         // nulls are ok, for cases where options are simple flags.
         List<?> vo = cmdLine.getValues(o);
         if (vo != null && !vo.isEmpty()) {
-          List<String> vals = new ArrayList<String>();
+          List<String> vals = Lists.newArrayList();
           for (Object o1 : vo) {
             vals.add(o1.toString());
           }
@@ -548,10 +550,25 @@ public abstract class AbstractJob extends Configured implements Tool {
                            Class<? extends Writable> mapperKey,
                            Class<? extends Writable> mapperValue,
                            Class<? extends OutputFormat> outputFormat) throws IOException {
+    return prepareJob(inputPath, outputPath, inputFormat, mapper, mapperKey, mapperValue, outputFormat, null);
+
+  }
+  protected Job prepareJob(Path inputPath,
+                           Path outputPath,
+                           Class<? extends InputFormat> inputFormat,
+                           Class<? extends Mapper> mapper,
+                           Class<? extends Writable> mapperKey,
+                           Class<? extends Writable> mapperValue,
+                           Class<? extends OutputFormat> outputFormat,
+                           String jobname) throws IOException {
 
     Job job = HadoopUtil.prepareJob(inputPath, outputPath,
             inputFormat, mapper, mapperKey, mapperValue, outputFormat, getConf());
-    job.setJobName(HadoopUtil.getCustomJobName(getClass().getSimpleName(), job, mapper, Reducer.class));
+
+    String name =
+        jobname != null ? jobname : HadoopUtil.getCustomJobName(getClass().getSimpleName(), job, mapper, Reducer.class);
+
+    job.setJobName(name);
     return job;
 
   }
@@ -584,7 +601,7 @@ public abstract class AbstractJob extends Configured implements Tool {
    * obsolete when MultipleInputs is available again
    */
   public static void setS3SafeCombinedInputPath(Job job, Path referencePath, Path inputPathOne, Path inputPathTwo)
-      throws IOException {
+    throws IOException {
     FileSystem fs = FileSystem.get(referencePath.toUri(), job.getConfiguration());
     FileInputFormat.setInputPaths(job, inputPathOne.makeQualified(fs), inputPathTwo.makeQualified(fs));
   }

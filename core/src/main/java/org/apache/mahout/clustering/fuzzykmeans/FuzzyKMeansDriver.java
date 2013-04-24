@@ -18,9 +18,9 @@
 package org.apache.mahout.clustering.fuzzykmeans;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ToolRunner;
@@ -265,10 +265,10 @@ public class FuzzyKMeansDriver extends AbstractJob {
                                    boolean runSequential)
     throws IOException, InterruptedException, ClassNotFoundException {
     
-    List<Cluster> clusters = new ArrayList<Cluster>();
+    List<Cluster> clusters = Lists.newArrayList();
     FuzzyKMeansUtil.configureWithClusterInfo(conf, clustersIn, clusters);
     
-    if (conf==null) {
+    if (conf == null) {
       conf = new Configuration();
     }
     
@@ -320,7 +320,7 @@ public class FuzzyKMeansDriver extends AbstractJob {
     throws IOException, ClassNotFoundException, InterruptedException {
     
     ClusterClassifier.writePolicy(new FuzzyKMeansClusteringPolicy(m, convergenceDelta), clustersIn);
-    ClusterClassificationDriver.run(input, output, new Path(output, PathDirectory.CLUSTERED_POINTS_DIRECTORY), threshold, emitMostLikely,
-        runSequential);
+    ClusterClassificationDriver.run(input, output, new Path(output, PathDirectory.CLUSTERED_POINTS_DIRECTORY),
+        threshold, emitMostLikely, runSequential);
   }
 }

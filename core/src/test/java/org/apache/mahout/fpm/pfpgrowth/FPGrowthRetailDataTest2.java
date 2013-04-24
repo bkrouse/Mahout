@@ -18,12 +18,12 @@
 package org.apache.mahout.fpm.pfpgrowth;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.common.Pair;
@@ -54,7 +54,7 @@ public final class FPGrowthRetailDataTest2 extends MahoutTestCase {
     
     final Map<Set<String>,Long> results = Maps.newHashMap();
     
-    Set<String> returnableFeatures = new HashSet<String>();
+    Set<String> returnableFeatures = Sets.newHashSet();
     returnableFeatures.add("41");
     returnableFeatures.add("36");
     returnableFeatures.add("39");
@@ -71,7 +71,7 @@ public final class FPGrowthRetailDataTest2 extends MahoutTestCase {
           
           for (Pair<List<String>,Long> v : value) {
             List<String> l = v.getFirst();
-            results.put(new HashSet<String>(l), v.getSecond());
+            results.put(Sets.newHashSet(l), v.getSecond());
           }
         }
         

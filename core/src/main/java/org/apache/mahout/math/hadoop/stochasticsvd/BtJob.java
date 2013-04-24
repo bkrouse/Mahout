@@ -23,7 +23,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
 
-import org.apache.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
@@ -298,7 +298,7 @@ public final class BtJob {
     }
 
     @SuppressWarnings("unchecked")
-    private void outputQRow(Writable key, Vector qRow, Vector aRow ) throws IOException {
+    private void outputQRow(Writable key, Vector qRow, Vector aRow) throws IOException {
       if (nv && (aRow instanceof NamedVector)) {
         qRowValue.set(new NamedVector(qRow, ((NamedVector) aRow).getName()));
       } else {

@@ -114,13 +114,14 @@ public class VJob {
         SSVDSolver.OutputScalingEnum.valueOf(context.getConfiguration()
                                                     .get(PROP_OUTPUT_SCALING));
       switch (outputScaling) {
-      case SIGMA:
-        sValues.assign(1.0);
-        break;
-      case HALFSIGMA:
-        sValues = SSVDHelper.loadVector(sigmaPath, context.getConfiguration());
-        sValues.assign(Functions.SQRT);
-        break;
+        case SIGMA:
+          sValues.assign(1.0);
+          break;
+        case HALFSIGMA:
+          sValues = SSVDHelper.loadVector(sigmaPath, context.getConfiguration());
+          sValues.assign(Functions.SQRT);
+          break;
+        default:
       }
 
       /*
@@ -166,7 +167,7 @@ public class VJob {
                   Path outputPath,
                   int k,
                   int numReduceTasks,
-                  SSVDSolver.OutputScalingEnum outputScaling ) throws ClassNotFoundException,
+                  SSVDSolver.OutputScalingEnum outputScaling) throws ClassNotFoundException,
     InterruptedException, IOException {
 
     job = new Job(conf);

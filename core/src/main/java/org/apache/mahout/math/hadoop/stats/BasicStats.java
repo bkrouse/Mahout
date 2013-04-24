@@ -49,13 +49,12 @@ public final class BasicStats {
    * @return The variance (based on sample estimation)
    */
   public static double variance(Path input, Path output,
-                                Configuration baseConf) throws IOException, InterruptedException,
-          ClassNotFoundException {
-
-	VarianceTotals varianceTotals = computeVarianceTotals(input, output, baseConf);
+                                Configuration baseConf)
+    throws IOException, InterruptedException, ClassNotFoundException {
+    VarianceTotals varianceTotals = computeVarianceTotals(input, output, baseConf);
     return varianceTotals.computeVariance();
   }
-  
+
   /**
    * Calculate the variance by a predefined mean of values stored as
    *
@@ -66,13 +65,12 @@ public final class BasicStats {
    * @return The variance (based on sample estimation)
    */
   public static double varianceForGivenMean(Path input, Path output, double mean,
-                                Configuration baseConf) throws IOException, InterruptedException,
-          ClassNotFoundException {
-
-	VarianceTotals varianceTotals = computeVarianceTotals(input, output, baseConf);
+                                Configuration baseConf)
+    throws IOException, InterruptedException, ClassNotFoundException {
+    VarianceTotals varianceTotals = computeVarianceTotals(input, output, baseConf);
     return varianceTotals.computeVarianceForGivenMean(mean);
   }
-  
+
   private static VarianceTotals computeVarianceTotals(Path input, Path output,
                                 Configuration baseConf) throws IOException, InterruptedException,
           ClassNotFoundException {
@@ -80,9 +78,10 @@ public final class BasicStats {
     conf.set("io.serializations",
                     "org.apache.hadoop.io.serializer.JavaSerialization,"
                             + "org.apache.hadoop.io.serializer.WritableSerialization");
-    Job job = HadoopUtil.prepareJob(input, output, SequenceFileInputFormat.class, StandardDeviationCalculatorMapper.class,
-            IntWritable.class, DoubleWritable.class, StandardDeviationCalculatorReducer.class,
-            IntWritable.class, DoubleWritable.class, SequenceFileOutputFormat.class, conf);
+    Job job = HadoopUtil.prepareJob(input, output, SequenceFileInputFormat.class,
+        StandardDeviationCalculatorMapper.class, IntWritable.class, DoubleWritable.class,
+        StandardDeviationCalculatorReducer.class, IntWritable.class, DoubleWritable.class,
+        SequenceFileOutputFormat.class, conf);
     HadoopUtil.delete(conf, output);
     job.setCombinerClass(StandardDeviationCalculatorReducer.class);
     boolean succeeded = job.waitForCompletion(true);
@@ -109,12 +108,12 @@ public final class BasicStats {
         sum += ((DoubleWritable) record.getSecond()).get();
       }
     }
-    
+
     VarianceTotals varianceTotals = new VarianceTotals();
     varianceTotals.setSum(sum);
     varianceTotals.setSumOfSquares(sumOfSquares);
     varianceTotals.setTotalCount(totalCount);
-    
+
     return varianceTotals;
   }
 
@@ -131,7 +130,7 @@ public final class BasicStats {
           ClassNotFoundException {
     return Math.sqrt(variance(input, output, baseConf));
   }
-  
+
   /**
    * Calculate the standard deviation given a predefined mean
    *

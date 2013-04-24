@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,8 @@ import java.util.Map.Entry;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import org.apache.commons.lang.mutable.MutableLong;
+import com.google.common.collect.Sets;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
@@ -155,7 +155,7 @@ public class FPGrowth<A extends Comparable<? super A>> {
 
     log.info("Number of unique items {}", frequencyList.size());
 
-    Collection<Integer> returnFeatures = new HashSet<Integer>();
+    Collection<Integer> returnFeatures = Sets.newHashSet();
     if (returnableFeatures != null && !returnableFeatures.isEmpty()) {
       for (A attrib : returnableFeatures) {
         if (attributeIdMapping.containsKey(attrib)) {
@@ -266,9 +266,8 @@ public class FPGrowth<A extends Comparable<? super A>> {
    * @param topKPatternsOutputCollector
    *          the outputCollector which transforms the given Pattern in integer
    *          format to the corresponding A Format
-   * @return Top K frequent patterns for each attribute
    */
-  private Map<Integer,FrequentPatternMaxHeap> generateTopKFrequentPatterns(
+  private void generateTopKFrequentPatterns(
     Iterator<Pair<int[],Long>> transactions,
     long[] attributeFrequency,
     long minSupport,
@@ -299,7 +298,7 @@ public class FPGrowth<A extends Comparable<? super A>> {
 
     log.info("Number of Nodes in the FP Tree: {}", nodecount);
 
-    return fpGrowth(tree, minSupport, k, returnFeatures, topKPatternsOutputCollector, updater);
+    fpGrowth(tree, minSupport, k, returnFeatures, topKPatternsOutputCollector, updater);
   }
 
   private static FrequentPatternMaxHeap growth(FPTree tree,

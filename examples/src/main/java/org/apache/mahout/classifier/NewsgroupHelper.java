@@ -48,10 +48,11 @@ import java.util.Random;
 public final class NewsgroupHelper {
   
   private static final SimpleDateFormat[] DATE_FORMATS = {
-          new SimpleDateFormat("", Locale.ENGLISH),
-          new SimpleDateFormat("MMM-yyyy", Locale.ENGLISH),
-          new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.ENGLISH)
+    new SimpleDateFormat("", Locale.ENGLISH),
+    new SimpleDateFormat("MMM-yyyy", Locale.ENGLISH),
+    new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.ENGLISH)
   };
+
   public static final int FEATURES = 10000;
   // 1997-01-15 00:01:00 GMT
   private static final long DATE_REFERENCE = 853286460;
@@ -59,7 +60,7 @@ public final class NewsgroupHelper {
   private static final long WEEK = 7 * 24 * 3600;
   
   private final Random rand = RandomUtils.getRandom();  
-  private final Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_41);
+  private final Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
   private final FeatureVectorEncoder encoder = new StaticWordValueEncoder("body");
   private final FeatureVectorEncoder bias = new ConstantValueEncoder("Intercept");
   
@@ -87,8 +88,8 @@ public final class NewsgroupHelper {
       countWords(analyzer, words, dateString, overallCounts);
       while (line != null && !line.isEmpty()) {
         boolean countHeader = (
-                line.startsWith("From:") || line.startsWith("Subject:") ||
-                        line.startsWith("Keywords:") || line.startsWith("Summary:")) && leakType < 6;
+                line.startsWith("From:") || line.startsWith("Subject:")
+                        || line.startsWith("Keywords:") || line.startsWith("Summary:")) && leakType < 6;
         do {
           Reader in = new StringReader(line);
           if (countHeader) {

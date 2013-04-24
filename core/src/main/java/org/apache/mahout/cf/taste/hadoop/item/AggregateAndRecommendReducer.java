@@ -17,28 +17,26 @@
 
 package org.apache.mahout.cf.taste.hadoop.item;
 
-import com.google.common.primitives.Floats;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.mahout.cf.taste.common.TopK;
+import org.apache.mahout.cf.taste.hadoop.MutableRecommendedItem;
 import org.apache.mahout.cf.taste.hadoop.RecommendedItemsWritable;
 import org.apache.mahout.cf.taste.hadoop.TasteHadoopUtils;
+import org.apache.mahout.cf.taste.hadoop.TopItemsQueue;
 import org.apache.mahout.cf.taste.impl.common.FastIDSet;
-import org.apache.mahout.cf.taste.impl.recommender.GenericRecommendedItem;
 import org.apache.mahout.cf.taste.recommender.RecommendedItem;
 import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.iterator.FileLineIterable;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.VarLongWritable;
 import org.apache.mahout.math.Vector;
-import org.apache.mahout.math.function.DoubleFunction;
 import org.apache.mahout.math.function.Functions;
 import org.apache.mahout.math.map.OpenIntLongHashMap;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,13 +69,6 @@ public final class AggregateAndRecommendReducer extends
   private OpenIntLongHashMap indexItemIDMap;
 
   private static final float BOOLEAN_PREF_VALUE = 1.0f;
-  private static final Comparator<RecommendedItem> BY_PREFERENCE_VALUE =
-      new Comparator<RecommendedItem>() {
-        @Override
-        public int compare(RecommendedItem one, RecommendedItem two) {
-          return Floats.compare(one.getValue(), two.getValue());
-        }
-      };
 
   @Override
   protected void setup(Context context) throws IOException {
@@ -98,13 +89,6 @@ public final class AggregateAndRecommendReducer extends
       }
     }
   }
-
-  private static final DoubleFunction ABSOLUTE_VALUES = new DoubleFunction() {
-    @Override
-    public double apply(double value) {
-      return value < 0 ? value * -1 : value;
-    }
-  };
 
   @Override
   protected void reduce(VarLongWritable userID,
@@ -163,11 +147,10 @@ public final class AggregateAndRecommendReducer extends
           numerators.assign(Functions.MULT, prefValue);
         }
       } else {
-        Vector toAdd = simColumn;
         if (prefValue != BOOLEAN_PREF_VALUE) {
-          toAdd.assign(Functions.MULT, prefValue);
+          simColumn.assign(Functions.MULT, prefValue);
         }
-        numerators.assign(toAdd, Functions.PLUS);
+        numerators.assign(simColumn, Functions.PLUS);
       }
 
     }
@@ -197,7 +180,7 @@ public final class AggregateAndRecommendReducer extends
   private void writeRecommendedItems(VarLongWritable userID, Vector recommendationVector, Context context)
     throws IOException, InterruptedException {
 
-    TopK<RecommendedItem> topKItems = new TopK<RecommendedItem>(recommendationsPerUser, BY_PREFERENCE_VALUE);
+    TopItemsQueue topKItems = new TopItemsQueue(recommendationsPerUser);
 
     Iterator<Vector.Element> recommendationVectorIterator = recommendationVector.iterateNonZero();
     while (recommendationVectorIterator.hasNext()) {
@@ -212,13 +195,19 @@ public final class AggregateAndRecommendReducer extends
       if (itemsToRecommendFor == null || itemsToRecommendFor.contains(itemID)) {
         float value = (float) element.get();
         if (!Float.isNaN(value)) {
-          topKItems.offer(new GenericRecommendedItem(itemID, value));
+
+          MutableRecommendedItem topItem = topKItems.top();
+          if (value > topItem.getValue()) {
+            topItem.set(itemID, value);
+            topKItems.updateTop();
+          }
         }
       }
     }
 
-    if (!topKItems.isEmpty()) {
-      context.write(userID, new RecommendedItemsWritable(topKItems.retrieve()));
+    List<RecommendedItem> topItems = topKItems.getTopItems();
+    if (!topItems.isEmpty()) {
+      context.write(userID, new RecommendedItemsWritable(topItems));
     }
   }
 
