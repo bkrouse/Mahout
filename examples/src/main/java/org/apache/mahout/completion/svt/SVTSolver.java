@@ -18,8 +18,12 @@
 package org.apache.mahout.completion.svt;
 
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Iterator;
@@ -31,6 +35,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
@@ -65,6 +70,7 @@ import org.apache.mahout.math.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Charsets;
 import com.google.common.io.Closeables;
 
 /**
@@ -89,21 +95,15 @@ import com.google.common.io.Closeables;
  *				choose delta closer to numRows*numColumns/Omega.size() to be riskier (i.e. algorithm may diverge)
  *		<li>maxiter - maximum number of iterations
  *		<li>tol - stopping criteria 
- * 		<li>TODO: include the EPS option?
  * </ul>
  * </p>
- * <p>Outputs: matrix X stored in SVD format X = U*diag(S)*V'
+ * <p>Output written to output path: matrix X stored in SVD format X = U*diag(S)*V'
  * <ul>
  * 		<li>U - numRows x rank left singular vectors
  * 		<li>S - rank x 1 singular values
  * 		<li>V - numColumns x rank right singular vectors
- * 		<li>numiter - number of iterations to achieve convergence
- * 		<li>TODO: include the output structure with data from each iteration?
-					%   output - a structure with data from each iteration.  Includes:
-					%       output.nuclearNorm  - nuclear norm of current iterate
-					%       output.rank         - rank of current iterate
-					%       output.time         - time taken for one iteraration
-					%       output.residual     - the relative residual, norm(x-b)/norm(b)
+ * 		<li>output log with data from each iteration
+ * 		<li>timing log 
  * </ul>
  * </p>
 */
@@ -114,12 +114,21 @@ public class SVTSolver extends AbstractJob {
 
   private static final double NANOS_IN_MILLI = 1.0e6;
 
+	private static final double DIVERGENCE = 1.0e5;
+
 	private static double CALC_DEFAULT_STEPSIZE = 0.05; //not the actual default -- trigger to calculate a recommended value
 	private static double DEFAULT_TOLERANCE = 1.0e-4;
 	private static double CALC_DEFAULT_THRESHOLD = -1; //not the actual default -- trigger to calculate a recommended value
 	private static int DEFAULT_INCREMENT = 4; //make this larger for more accuracy
 	private static int DEFAULT_MAXITER = 500;
 
+	private static String U_THRESHOLDED_REL_PATH = "UThresholded";
+	private static String V_THRESHOLDED_REL_PATH = "VThresholded";
+	private static String S_THRESHOLDED_REL_PATH = "DiagS";
+	
+	private static String LOG_FILENAME = "svtsolver.log";
+	private static String TIMING_FILENAME = "svttiming.csv";
+	
   @Override
   public int run(String[] args) throws Exception {
   	
@@ -183,13 +192,6 @@ public class SVTSolver extends AbstractJob {
     ToolRunner.run(new SVTSolver(), args);
   }
 
-  public enum TimingSection {
-    TBD
-  }
-
-  private final Map<TimingSection, Long> startTimes = new EnumMap<TimingSection, Long>(TimingSection.class);
-  private final Map<TimingSection, Long> times = new EnumMap<TimingSection, Long>(TimingSection.class);
-
   
   public void solve(Configuration conf,
 	      Path inputPath,
@@ -235,167 +237,196 @@ public class SVTSolver extends AbstractJob {
       boolean overwrite) throws IOException
   {  	
   	
-    FileSystem fs = outputPath.getFileSystem(conf);
+  	BufferedWriter logWriter = null;
+  	BufferedWriter timingWriter = null;
+  	try
+  	{
+	    FileSystem fs = outputPath.getFileSystem(conf);
+	    
+	    //cleanup outputPath and workingPath is overwrite is true, otherwise bail
+	    if(overwrite) {
+	  		fs.delete(outputPath, true);
+	  		fs.delete(workingPath, true);
+	  	}
+	  	else {
+	  		if(fs.exists(outputPath))
+	  			throw new IOException("outputPath has contents and overwrite=false: " + outputPath.toString());
+	  		
+	  		if(fs.exists(workingPath))
+	  			throw new IOException("workingPath has contents and overwrite=false: " + workingPath.toString());
+	  	}
+	  	
+	    //open log and timing writers
+	    fs.mkdirs(outputPath);
+	    Path logPath = new Path(outputPath, LOG_FILENAME);
+	  	OutputStream logStream = new FileOutputStream(new File(logPath.toString()));
+	    logWriter = new BufferedWriter(new OutputStreamWriter(logStream, Charsets.UTF_8));
+	    Path timingPath = new Path(outputPath, TIMING_FILENAME);
+	  	OutputStream timingStream = new FileOutputStream(new File(timingPath.toString()));
+	    timingWriter = new BufferedWriter(new OutputStreamWriter(timingStream, Charsets.UTF_8));
+	    long timingStart = 0, timingEnd = 0;
 
-  	//check overwrite and output contents -- if something is there, delete or bail as appropriate
-  	if(overwrite) {
-  		fs.delete(outputPath, true);
+	    writeIterationResultsHeader(logWriter);
+	    writeTimingHeader(timingWriter);
+	    
+	  	//run algorithm to complete the matrix
+	    DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
+	    matrix.setConf(conf);
+	    
+	    //kicking step
+    	timingStart = System.currentTimeMillis();
+	    double norm2 = norm2(matrix);
+	  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
+	  	DistributedRowMatrix Y = matrix.times(new Path(workingPath, "Y0"), k0*stepSize);  
+    	timingEnd = System.currentTimeMillis();
+    	this.writeTimingResults(timingWriter, 0, "kickingStep", timingEnd - timingStart);
+
+	  	//calculate matrixFrobNorm -- will use in each iteration below
+    	timingStart = System.currentTimeMillis();
+	  	double matrixFrobNorm = matrix.frobeniusNorm();
+    	timingEnd = System.currentTimeMillis();
+    	this.writeTimingResults(timingWriter, 0, "frobeniusNorm", timingEnd - timingStart);
+	  	
+	    //main SVT loop
+	    int r=0, s=0;
+	    Path iterationWorkingPath = null;
+	    for (int k=1; k<=maxIter; k++) {
+	    	long iterationStart = System.currentTimeMillis();
+	    	iterationWorkingPath = new Path(workingPath, Integer.toString(k));
+	    	s = r+1;
+	    	
+	    	//get the first s singular values/vectors of the matrix Y
+	    	//check if the last singular value is <= tao
+	    	//if its not, s = s + increment -- and do it again
+	    	//TODO: currently hard-coding s (based on my input matrix) -- need to make this incremental.
+	    	//			this will involve modifying Lanczos to (a) handle asym matrices, and (b) handle iterating up to a threshold
+	    	//			(which internally means letting it save work between iterations)
+	    	//			For now, I'll use SSVD (since it handles asym), but hard code s (since SSVD doesn't
+	    	//			handle restarts.  
+	    	//			I may need to interact with the community on this one.  But first, I want to get 
+	    	//			through a skeleton of the entire SVT, and show some results to Dr Ye.
+	    	//		  I may also need to do some studies into the accuracy of results, based on the rank
+	    	//			that I am trying to achieve and based on how many internal iterations of Lanczos.
+	    	//			Maybe while I'm at it, I can also try to make Lanczos faster.
+	    	//			Note - I'll probably want to use DistributedLanczosSolver -- because it can be restarted on the HdfsLanczosState, and
+	    	//			also because it ties to the EigenVerificationJob (i.e. cleansvd) at the end if it's run if I send in those params.
+	    	//			I think I'll need to do this after settling on the right rank in each iteration -- or at least understand why it's needed --
+	    	//			Since I need not only the singular values, but the vectors as well.  That too might need adjustment to support asymmetric?
+	    	
+	    	timingStart = System.currentTimeMillis();
+	    	SVD svd;
+	    	while (true) {
+	    		 s = 14;  //hard code this for now -- will ultimately increment this in steps, and pass in to computeSVD my saved work
+	    		 svd = computeSVD(conf, iterationWorkingPath, Y, s);
+	    		 break;
+	    	}
+	    	timingEnd = System.currentTimeMillis();
+	    	this.writeTimingResults(timingWriter, k, "computeSVD", timingEnd - timingStart);
+
+	    	//set r to the index of the smallest singular value greater than tao
+	    	while(r < svd.S.size()) {
+	    		if(svd.S.get(r) <= threshold) {
+	    			if (r > 0)  { r--; }  //TODO: what to do if threshold is greater than even the first singular value?  right now, just making sure I don't go out of bounds
+	    			break;
+	    		}
+	    		r++;
+	    	}
+	    	 
+	
+	    	//truncate U and V, up to r+1th (i.e. vector whose index is r) vectors each (all rows, up to r+1 columns)
+	    	//truncate S up to r+1 values, and subtract threshold from each value
+	    	//TODO: make the truncate and threshold more efficient -- currently makes a copy of both matrices
+	    	//SSVD returns U and V as distributed matrix format -- so it's not as easy to take the first r+1 vectors.
+	    	//Lanczos returns the singular vectors as vectors -- so it's easy peasy to take the first r+1.
+	    	//ultimately, I know I will need to use Lanczos -- for the iterative approach
+	    	//but in my current workaround that uses SSVD, I need to just quickly pull out the first r+1 vectors
+	    	//so until I switch to Lanczos...we'll just hack something together that works, even if it's a bit expensive
+	    	timingStart = System.currentTimeMillis();
+	    	svd.truncateAndThreshold(r, threshold);    	
+	    	timingEnd = System.currentTimeMillis();
+	    	this.writeTimingResults(timingWriter, k, "truncateAndThreshold", timingEnd - timingStart);
+	
+	    	//calculate X = U'*S*V -- with truncated singular values
+	    	//currently assuming I can just hard-code 1 partition coming back....that may change with larger data sets?  Dunno
+	    	//exactly what SSVD will return in those cases...
+	    	//not sure why it matters...but I was getting weird results until I setConf(conf) on each matrix.
+	    	timingStart = System.currentTimeMillis();
+	    	DistributedRowMatrix DiagS = svd.getDiagS(conf);
+	      DiagS.setConf(conf);    	
+	    	DistributedRowMatrix Utrans = svd.U.transpose(new Path(iterationWorkingPath,"Utrans"), 1); 
+	    	Utrans.setConf(conf);
+	    	DistributedRowMatrix Vtrans = svd.V.transpose(new Path(iterationWorkingPath,"Vtrans"), 1);  
+	    	Vtrans.setConf(conf);
+	    	DistributedRowMatrix SV = DiagS.times(new Path(iterationWorkingPath,"SV"), Vtrans); 
+	    	SV.setConf(conf);
+	    	DistributedRowMatrix X = Utrans.times(new Path(iterationWorkingPath,"X"),SV); 
+	    	X.setConf(conf);
+	    	timingEnd = System.currentTimeMillis();
+	    	this.writeTimingResults(timingWriter, k, "transposingAndTimesingAndStuff", timingEnd - timingStart);
+	    	  	
+	
+	    	//checking stopping conditions
+	    	timingStart = System.currentTimeMillis();
+	    	DistributedRowMatrix XminusM = X.plus(new Path(iterationWorkingPath, "XminusM"), matrix, -1);
+	    	XminusM.setConf(conf);
+	    	DistributedRowMatrix XminusMonOmega = XminusM.projection(new Path(iterationWorkingPath, "XminusMonOmega"), matrix);
+	    	XminusMonOmega.setConf(conf);
+	    	double relRes = XminusMonOmega.frobeniusNorm() / matrixFrobNorm; 
+	    	timingEnd = System.currentTimeMillis();
+	    	this.writeTimingResults(timingWriter, k, "checkStoppingConditions", timingEnd - timingStart);
+	    	
+	    	
+	    	//write results from this iteration to output log
+	    	long iterationEnd = System.currentTimeMillis();
+	    	writeIterationResults(logWriter, k, r, relRes, iterationEnd - iterationStart);
+	    	
+	    	if (relRes <= tolerance)
+	    		break;
+	    	else if (relRes > DIVERGENCE) {
+	    		throw new IOException("relRes diverged in iteration " + Integer.toString(k));
+	    	}
+	    	
+	    	
+	    	//calculate Y for next iteration
+	    	timingStart = System.currentTimeMillis();
+	    	DistributedRowMatrix YplusStep = Y.plus(new Path(iterationWorkingPath, "YplusStep"), XminusM, -1*stepSize); //this is same as Y + delta*Projection(M-X) -- just re-using XminusM 
+	    	YplusStep.setConf(conf);
+	    	Y = YplusStep.projection(new Path(iterationWorkingPath,"Y"), matrix);  
+	    	Y.setConf(conf);
+	    	timingEnd = System.currentTimeMillis();
+	    	this.writeTimingResults(timingWriter, k, "calculateNextY", timingEnd - timingStart);
+	    		    	
+	    	//TODO - add the option to clean up last iteration's working directory?
+	    }
+	    
+	    //move U, S and V to the outputPath
+	    if(iterationWorkingPath!=null) {
+		    FileUtil.copy(fs, new Path(iterationWorkingPath,U_THRESHOLDED_REL_PATH), fs, new Path(outputPath,U_THRESHOLDED_REL_PATH), false, conf);
+		    FileUtil.copy(fs, new Path(iterationWorkingPath,S_THRESHOLDED_REL_PATH), fs, new Path(outputPath,S_THRESHOLDED_REL_PATH), false, conf);
+		    FileUtil.copy(fs, new Path(iterationWorkingPath,V_THRESHOLDED_REL_PATH), fs, new Path(outputPath,V_THRESHOLDED_REL_PATH), false, conf);
+	    }    
+	    
+    
+  	} finally 
+  	{
+  		Closeables.closeQuietly(logWriter);
+  		Closeables.closeQuietly(timingWriter);
   	}
-  	
-  	//path for capturing some intermediate results, for debugging purposes:
-    Path intermediatesPath = new Path(outputPath,"intermediates");
-
-  	
-  	//run algorithm to complete the matrix
-    DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
-    matrix.setConf(conf);
-
-    
-    //kicking step
-    double norm2 = norm2(matrix);
-  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
-  	DistributedRowMatrix Y = matrix.times(k0*stepSize);  
-  	
-  	
-  	//log some variables to intermediate results file:
-    Path resultsFilePath = new Path(intermediatesPath.toString().concat("/miscvariables.txt"));
-    FSDataOutputStream resultFile = fs.create(resultsFilePath, true);
-    resultFile.writeChars("norm2=" + Double.toString(norm2) + "\n");
-    resultFile.writeChars("k0=" + Integer.toString(k0) + "\n");
-    resultFile.close();
-
-    //main SVT loop
-  	//TODO -- consider how much disk space I'm using with each loop...may need to clean up more as I go?
-    //TODO -- may also be an optimization to just do updates in place somehow?  dunno...
-    int r=0, s=0;
-    //declare X (it's what we return out of loop)
-    //declare U, S, V -- return these too perhaps?
-    for (int k=1; k<=maxIter; k++) {
-    	log.info("SVT - Iteration {}", k);
-    	s = r+1;
-    	
-    	//get the first s singular values/vectors of the matrix Y
-    	//check if the last singular value is <= tao
-    	//if its not, s = s + increment -- and do it again
-    	//TODO: currently hard-coding s (based on my input matrix) -- need to make this incremental.
-    	//			this will involve modifying Lanczos to (a) handle asym matrices, and (b) handle iterating up to a threshold
-    	//			(which internally means letting it save work between iterations)
-    	//			For now, I'll use SSVD (since it handles asym), but hard code s (since SSVD doesn't
-    	//			handle restarts.  
-    	//			I may need to interact with the community on this one.  But first, I want to get 
-    	//			through a skeleton of the entire SVT, and show some results to Dr Ye.
-    	//		  I may also need to do some studies into the accuracy of results, based on the rank
-    	//			that I am trying to achieve and based on how many internal iterations of Lanczos.
-    	//			Maybe while I'm at it, I can also try to make Lanczos faster.
-    	//			Note - I'll probably want to use DistributedLanczosSolver -- because it can be restarted on the HdfsLanczosState, and
-    	//			also because it ties to the EigenVerificationJob (i.e. cleansvd) at the end if it's run if I send in those params.
-    	//			I think I'll need to do this after settling on the right rank in each iteration -- or at least understand why it's needed --
-    	//			Since I need not only the singular values, but the vectors as well.  That too might need adjustment to support asymmetric?
-    	
-    	SVD svd;
-    	while (true) {
-    		 s = 14;  //hard code this for now -- will ultimately increment this in steps, and pass in to computeSVD my saved work
-    		 svd = computeSVD(conf, workingPath, k, Y, s);
-    		 break;
-    	}
-
-    	
-    	//set r to the index of the smallest singular value greater than tao
-    	while(r < svd.S.size()) {
-    		if(svd.S.get(r) <= threshold) {
-    			if (r > 0)  { r--; }  //TODO: what to do if threshold is greater than even the first singular value?  right now, just making sure I don't go out of bounds
-    			break;
-    		}
-    		r++;
-    	}
-    	 
-
-    	//truncate U and V, up to r+1th (i.e. vector whose index is r) vectors each (all rows, up to r+1 columns)
-    	//truncate S up to r+1 values, and subtract threshold from each value
-    	//TODO: make the truncate and threshold more efficient -- currently makes a copy of both matrices
-    	//SSVD returns U and V as distributed matrix format -- so it's not as easy to take the first r+1 vectors.
-    	//Lanczos returns the singular vectors as vectors -- so it's easy peasy to take the first r+1.
-    	//ultimately, I know I will need to use Lanczos -- for the iterative approach
-    	//but in my current workaround that uses SSVD, I need to just quickly pull out the first r+1 vectors
-    	//so until I switch to Lanczos...we'll just hack something together that works, even if it's a bit expensive
-    	svd.truncateAndThreshold(r, threshold);    	
-
-    	//calculate X = U'*S*V -- with truncated singular values
-    	//currently assuming I can just hard-code 1 partition coming back....that may change with larger data sets?  Dunno
-    	//exactly what SSVD will return in those cases...
-    	//not sure why it matters...but I was getting weird results until I setConf(conf) on each matrix.
-    	DistributedRowMatrix DiagS = svd.getDiagS(conf);
-      DiagS.setConf(conf);    	
-    	DistributedRowMatrix Utrans = svd.U.transpose(1); 
-    	Utrans.setConf(conf);
-    	DistributedRowMatrix Vtrans = svd.V.transpose(1);  
-    	Vtrans.setConf(conf);
-    	DistributedRowMatrix SV = DiagS.times(Vtrans); 
-    	SV.setConf(conf);
-    	DistributedRowMatrix X = Utrans.times(SV); 
-    	X.setConf(conf);
-    	  	
-    	//take projection of X on Omega
-    	//lets do this by only taking the elements of X where input matrix is non-zero -- vs requiring end user to input Omega
-    	DistributedRowMatrix XonOmega = X.projection(matrix);
-    	
-    	break;
-    	 
-    	
-    	//if froeb-norm( Projection(X-M) )  /  froeb-norm( Projection(M) )  is <= tolerance we're done
-
-    	// fprintf('iteration %4d, rank is %2d, rel. residual is %.1e\n',k,r,norm(x-b)/normb);
-    	//	if (relRes < tol)
-    	//		break;
-    	//	if (relRes > 1e5)
-    	//		log.Error(Error!  Diverence!)
-    	//		break;
-
-
-    	//Y = Projection (Y + delta*(M-X))
-
-    }
-    
-//    return X; -- or rather I'll write X to filesystem
-
-    
-    
-    
-  	
-  	//optionally write the final U, S, V somewhere?  who knows, will I want to be able to inspect the intermediate ones too?
-  	//write another "SVT Results" data structure out for reports on processing time?
-  	
-  	//write out the final completed matrix
-    //ACTUALLY...I thnk it's better to write out U, S, and V from my last iteration -- its what the algorithm is doing
-    //after all, and it presents more info back -- vs losing that visibility by multiplying things out
-  	
-  	//TEMP stub step: just transpose the matrix from inputPath into outputPath location    
-    Path outputPathDir = new Path(outputPath.toString().concat("-dir"));
-    Path partPath = new Path(outputPathDir.toString().concat("/part-00000"));
-    DistributedRowMatrix matrixTransposed = matrix.transpose(outputPathDir);
-    
-    //rename the single file and delete the directory
-    fs.rename(partPath, outputPath);
-    fs.delete(outputPathDir,true);
-    
-    //clean up working path (e.g. "temp/svt-working")
-//    fs.delete(workingPath, true);    
-    
+ 
   	return;
   }
 
   
-  private SVD computeSVD(Configuration conf, Path workingPath, int svtIteration, DistributedRowMatrix Y, int desiredRank) throws IOException {
+  private SVD computeSVD(Configuration conf, Path workingPath, DistributedRowMatrix Y, int desiredRank) throws IOException {
   	//use SSVD to compute for now -- eventually switch to Lanczos when it can (a) handle asym, (b) iterate up to a threshold
 	  int r = 10000;
 	  int k = desiredRank;
 	  int p = 15;
 	  int reduceTasks = 10; //check shell scripts for better default
-	  Path ssvdOutputTmpPath = new Path(workingPath, "ssvd/" + Integer.toString(svtIteration));
 	  SSVDSolver solver = 
 	    new SSVDSolver(conf,
 	                   new Path[] {Y.getRowPath()},
-	                   ssvdOutputTmpPath,
+	                   workingPath,
 	                   r,
 	                   k,
 	                   p,
@@ -426,11 +457,6 @@ public class SVTSolver extends AbstractJob {
   	return svd;
   }
   
-
-  private void writeSVD(Path intermediatesPath, SVD svd, int iterationNum)
-  {
-  	//TODO: write the SVD to disk
-  }
   
   /*
    * norm2 calculates the 2-norm, which is the largest singular value
@@ -489,107 +515,15 @@ public class SVTSolver extends AbstractJob {
 		return 5*Math.sqrt(numRows*numCols);
 	}
   
-  /*
-  public SVTSolver.Result solve(SparseRowMatrix P,
-			double tau,
-			double delta) {
 
-  	return solve(P, tau, delta, DEFAULT_MAXITER, DEFAULT_TOL);
-  }
-  
-  public SVTSolver.Result solve(SparseRowMatrix P,
-  									double tau,
-  									double delta,
-  									int maxiter,
-  									double tol) {
-
-*/
-
-/*
-  	int minDim = Math.min(P.numRows(), P.numCols());
-  	int k0 = (int)Math.ceil(tau / (delta*estimateNorm(P, 1e-2)) );  	
-  		
-  		* equation (5.3)
-  		* I want to take the square of ||X||.  The norm of my matrix, squared.
-  		
-  	
-  	SparseRowMatrix Y = P.times(k0*delta);
-  	
-  	
-//  	int r=0, s=0;
-//  	Matrix U = null, V = null;
-//  	List<Double> Sigma = null;
-//  	for (int k=1; k<=maxiter; k++) {
-//  		log.info("SVT - Iteration {}", k);  		
-//  		s = r + 1;
-//  		while (true) {
-//  			//TODO: I think I need to tweak things here...since Lanczos is only working on a symmetric...I am 
-//  			//only getting back the left singular vector and the singular values...which means I need to run it again on A'*A to get right singular vectors
-//  			//But HOW does the Matlab version do it when the input matrix is not symmetric??
-//  			//Also, I may not be getting back the TOP singular values...might need to get 2-3x as many, and then sort??
-//  			//I probably need to "clean" the eigenvectors that come back too?  Seems that Lanczos should do this itself
-//  	    U = new DenseMatrix(s, P.numCols());
-//  	    Sigma = new ArrayList<Double>();
-//  	    LanczosSolver solver = new LanczosSolver();
-//  	    solver.solve(Y, s, U, Sigma, false);
-//
-//  			if( (Sigma.get(s)<=tau) || (s==minDim) ) break;
-//  			s = Math.min(s + 5, minDim);
-//  		}
-//  	
-//  	//	sigma = diag(Sigma); r = sum(sigma > tau); -- setting rank to # of sing vals > tau
-//  	//	U = U(:,1:r); V = V(:,1:r); sigma = sigma(1:r) - tau; Sigma = diag(sigma);
-//
-//  	//	//Returns x = projection of X on Omega
-//  	//	x = XonOmega(U*diag(sigma), V, Omega) -- this is a separate MEX function
-//  	
-//  	//  relRes = frob_norm(x-b)/normb;
-//  	//	fprintf('iteration %4d, rank is %2d, rel. residual is %.1e\n',k,r,norm(x-b)/normb);
-//
-//  	//	if (relRes < tol)
-//  	//		break;
-//  	//	if (relRes > 1e5)
-//  	//		log.Error(Error!  Diverence!)
-//  	//		break;
-//  	
-//  	//	y = y + delta*(b-x);
-//  	//	updateSparse(Y,y,indx);  -- here's that separate MEX function again...
-//  	}	
-//  	
-//  	SVTSolver.Result result = new SVTSolver.Result();
-//  	result.U = U;
-//  	result.S = S;
-//  	result.V = V;
-//  	result.numiter = numiter;
-//  	return result;
-    
-
-	  return null;
-  }
-*/
-  
-  private void startTime(TimingSection section) {
-    startTimes.put(section, System.nanoTime());
-  }
-
-  private void endTime(TimingSection section) {
-    if (!times.containsKey(section)) {
-      times.put(section, 0L);
-    }
-    times.put(section, times.get(section) + (System.nanoTime() - startTimes.get(section)));
-  }
-
-  public double getTimeMillis(TimingSection section) {
-    return ((double) times.get(section)) / NANOS_IN_MILLI;
-  }
 
   private class SVD {
   	public SVD() 
   	{}
   	
   	public void truncateAndThreshold(int r, double threshold) throws IOException {
-    	U = U.viewColumns(0, r); //in terms of indexes -- start index of 0, end index of r
-    	V = V.viewColumns(0, r);
+    	U = U.viewColumns(new Path(U.getRowPath().getParent(),U_THRESHOLDED_REL_PATH), 0, r); //in terms of indexes -- start index of 0, end index of r
+    	V = V.viewColumns(new Path(U.getRowPath().getParent(),V_THRESHOLDED_REL_PATH), 0, r);
     	S = S.viewPart(0, r+1).plus(threshold*-1);  //viewPart(startIndex, length) -- since r is end index, want r+1 as length
 			
 		}
@@ -599,7 +533,7 @@ public class SVTSolver extends AbstractJob {
   	public DistributedRowMatrix getDiagS(Configuration conf) throws IOException {
   		
   		//create a DistributedRowMatrix version of Diag(S)
-  		Path diagSPath = new Path(U.getRowPath().getParent(), "DiagS");
+  		Path diagSPath = new Path(U.getRowPath().getParent(), S_THRESHOLDED_REL_PATH);
   		
       FileSystem fs = FileSystem.get(diagSPath.toUri(), conf);
       SequenceFile.Writer writer = null;
@@ -634,4 +568,27 @@ public class SVTSolver extends AbstractJob {
   	public DistributedRowMatrix V = null;
   }
 
+  private void writeIterationResultsHeader(BufferedWriter writer) throws IOException {
+  	writer.write("iterationNum,rank,relativeResidual,iterationTiming");
+  	writer.newLine();
+  	writer.flush();
+  }
+  
+  private void writeIterationResults(BufferedWriter writer, int iterationNum, int rank, double relativeResidual, long iterationTiming) throws IOException {
+  	writer.write(iterationNum + "," + Integer.toString(rank+1) + "," + relativeResidual + "," + iterationTiming);
+  	writer.newLine();
+  	writer.flush();
+  }
+
+  private void writeTimingHeader(BufferedWriter writer) throws IOException {
+  	writer.write("iterationNum,label,timing");
+  	writer.newLine();
+  	writer.flush();
+  }
+  
+  private void writeTimingResults(BufferedWriter writer, int iterationNum, String label, long timing) throws IOException {
+  	writer.write(iterationNum + "," + label + "," + timing);
+  	writer.newLine();
+  	writer.flush();
+  }
 }

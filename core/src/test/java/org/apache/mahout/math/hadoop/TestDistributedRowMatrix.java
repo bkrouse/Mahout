@@ -227,7 +227,7 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
 
     DistributedRowMatrix distM = randomDistributedMatrix(20, 19, 15, 11, 10.0, false, "distM");
     DistributedRowMatrix distOmega = randomDistributedMatrix(20, 16, 15, 5, 5.0, false, "distOmega");
-  	DistributedRowMatrix projected = distM.projection(distOmega);
+  	DistributedRowMatrix projected = distM.projection(new Path(distM.getRowPath().getParent(), "projection"), distOmega);
       	
     assertEquals(expected, projected, EPSILON);
   }

@@ -25,7 +25,6 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
@@ -34,10 +33,8 @@ import org.apache.hadoop.mapred.join.TupleWritable;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.math.RandomAccessSparseVector;
-import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
-import org.apache.mahout.math.function.Functions;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -99,10 +96,10 @@ public class MatrixProjectionJob extends AbstractJob {
     omega.setConf(new Configuration(getConf()));
 
     //DistributedRowMatrix c = a.times(b);
-    m.projection(omega);
+//    m.projection(omega);
     return 0;
   }
-
+  
   public static class MatrixProjectionMapper extends MapReduceBase
       implements Mapper<IntWritable,TupleWritable,IntWritable,VectorWritable> {
 
@@ -122,7 +119,6 @@ public class MatrixProjectionJob extends AbstractJob {
     	Vector omegaFrag = ((VectorWritable)v.get(1)).get();
     	
       //would be better to implement project() on Vector...but I don't want to go through that until I know I'll keep this 
-      //(and committers won't spit on it...)
       Vector outVector = new RandomAccessSparseVector(omegaFrag.size());
       Iterator<Vector.Element> it = rowFrag.iterateNonZero();
       while (it.hasNext()) {

@@ -34,12 +34,9 @@ import org.apache.hadoop.mapred.join.CompositeInputFormat;
 import org.apache.hadoop.mapred.join.TupleWritable;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
-import org.apache.mahout.common.Pair;
-import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterator;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
-import org.apache.mahout.math.Vector.Element;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.Functions;
 
@@ -48,26 +45,24 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class MatrixViewPartJob extends AbstractJob {
+public class MatrixAdditionJob extends AbstractJob {
+	
+  private static final String MULTIPLIER = "DistributedRowMatrix.matrixAddition.multiplier";
 
-	//assuming 0-based indices
-  private static final String ROW_IDX_START = "DistributedMatrix.MatrixViewPart.ROW_IDX_START";
-  private static final String ROW_IDX_END = "DistributedMatrix.MatrixViewPart.ROW_IDX_END";
-  private static final String COL_IDX_START = "DistributedMatrix.MatrixViewPart.COL_IDX_START";
-  private static final String COL_IDX_END = "DistributedMatrix.MatrixViewPart.COL_IDX_END";
 
-	public static Configuration createMatrixViewPartJobConf(Configuration initialConf, Path matrixPath, int rowIdxStart, int rowIdxEnd,
-																									int colIdxStart, int colIdxEnd, Path outPath) {
-    JobConf conf = new JobConf(initialConf, MatrixViewPartJob.class);
-    conf.setInputFormat(SequenceFileInputFormat.class);
-    FileInputFormat.setInputPaths(conf, matrixPath);    
+  public static Configuration createMatrixAdditionJobConf(Configuration initialConf, 
+  																												Path aPath, 
+                                                          Path bPath, 
+                                                          Path outPath, 
+                                                          double multiplier) {
+    JobConf conf = new JobConf(initialConf, MatrixAdditionJob.class);
+    conf.setInputFormat(CompositeInputFormat.class);
+    conf.set("mapred.join.expr", CompositeInputFormat.compose(
+          "inner", SequenceFileInputFormat.class, aPath, bPath));
     conf.setOutputFormat(SequenceFileOutputFormat.class);
-    conf.set(ROW_IDX_START, Integer.toString(rowIdxStart));
-    conf.set(ROW_IDX_END, Integer.toString(rowIdxEnd));
-    conf.set(COL_IDX_START, Integer.toString(colIdxStart));
-    conf.set(COL_IDX_END, Integer.toString(colIdxEnd));
+    conf.set(MULTIPLIER, Double.toString(multiplier));
     FileOutputFormat.setOutputPath(conf, outPath);
-    conf.setMapperClass(MatrixViewPartMapper.class);
+    conf.setMapperClass(MatrixAdditionMapper.class);
     conf.setMapOutputKeyClass(IntWritable.class);
     conf.setMapOutputValueClass(VectorWritable.class);
     conf.setOutputKeyClass(IntWritable.class);
@@ -77,56 +72,45 @@ public class MatrixViewPartJob extends AbstractJob {
   }
 
   public static void main(String[] args) throws Exception {
-    ToolRunner.run(new MatrixViewPartJob(), args);
+    ToolRunner.run(new MatrixAdditionJob(), args);
   }
 
   @Override
   public int run(String[] strings) throws Exception {
-  	throw new Exception("not implemented");
+    throw new Exception("Not implemented");
   }
 
-  public static class MatrixViewPartMapper extends MapReduceBase
-      implements Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable> {
+  public static class MatrixAdditionMapper extends MapReduceBase
+      implements Mapper<IntWritable,TupleWritable,IntWritable,VectorWritable> {
 
-    private int rowIdxStart;
-    private int rowIdxEnd;
-    private int colIdxStart;
-    private int colIdxEnd;
+    
+  	private double multiplier;
+    
 
     @Override
     public void configure(JobConf conf) {
-    	rowIdxStart = Integer.valueOf(conf.get(ROW_IDX_START));
-    	rowIdxEnd = Integer.valueOf(conf.get(ROW_IDX_END));
-    	colIdxStart = Integer.valueOf(conf.get(COL_IDX_START));
-    	colIdxEnd = Integer.valueOf(conf.get(COL_IDX_END));
+      multiplier = Double.parseDouble(conf.get(MULTIPLIER, "1.0"));
     }
 
     @Override
     public void map(IntWritable index,
-    								VectorWritable v,
+                    TupleWritable v,
                     OutputCollector<IntWritable,VectorWritable> out,
                     Reporter reporter) throws IOException {
+      Vector fragA = ((VectorWritable)v.get(0)).get();
+      Vector fragB = ((VectorWritable)v.get(1)).get();
 
-      int rowIdx = index.get();
-      if(rowIdx >= rowIdxStart && rowIdx <= rowIdxEnd) {
-      	Vector vNew = new SequentialAccessSparseVector(colIdxEnd-colIdxStart+1);
-      	Vector vPart = v.get().viewPart(colIdxStart, colIdxEnd-colIdxStart+1);
-      	
-        Iterator<Element> vPartIterator = vPart.iterateNonZero();
-        
-        while(vPartIterator.hasNext()) {
-        	Element e = vPartIterator.next();
-        	vNew.setQuick(e.index(), e.get());
-        }
-      	
-        out.collect( new IntWritable(rowIdx-rowIdxStart), new VectorWritable(vNew) );      	
+            
+      Vector outVector = new RandomAccessSparseVector(fragA.size());
+      for(int i=0; i<fragA.size(); i++)
+      {
+      	double outValue = fragA.getQuick(i) + fragB.getQuick(i)*multiplier;
+      	outVector.setQuick(i, outValue);
       }
-      
-      
+            
+      out.collect(index, new VectorWritable(new SequentialAccessSparseVector(outVector)));
     }
   }
-
-
 
 
 }

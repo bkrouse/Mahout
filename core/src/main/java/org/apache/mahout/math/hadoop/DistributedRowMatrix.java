@@ -173,14 +173,25 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 
   /**
    * This implements matrix this.transpose().times(other)
+	 * @param outPath the path to the rowPath of the resultant product matrix
    * @param other   a DistributedRowMatrix
    * @return    a DistributedRowMatrix containing the product
    */
   public DistributedRowMatrix times(DistributedRowMatrix other) throws IOException {
+    Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFFFF));
+
+    return times(outPath, other);
+  }
+  
+  /**
+   * This implements matrix this.transpose().times(other)
+   * @param other   a DistributedRowMatrix
+   * @return    a DistributedRowMatrix containing the product
+   */
+  public DistributedRowMatrix times(Path outPath, DistributedRowMatrix other) throws IOException {
     if (numRows != other.numRows()) {
       throw new CardinalityException(numRows, other.numRows());
     }
-    Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFFFF));
 
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
     Configuration conf =
@@ -195,20 +206,49 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     return out;
   }
   
-  
+
   /**
-   * This returns a matrix P based on current matrix X and other matrix Y (same dimensions as X) where Pij = Xij (if Yij != 0) and Pij = 0 (if Yij == 0)  
+   * This implements this + other*multiplier
+	 * @param outPath	path for resultant DistributedRowMatrix
    * @param other   a DistributedRowMatrix
-   * @return    a DistributedRowMatrix containing the projection onto other
+   * @param multiplier multiplier 
+   * @return    a DistributedRowMatrix containing the result
    */
-  public DistributedRowMatrix projection(DistributedRowMatrix other) throws IOException {
+  public DistributedRowMatrix plus(Path outPath, DistributedRowMatrix other, double multiplier) throws IOException {
     if (numRows != other.numRows()) {
       throw new CardinalityException(numRows, other.numRows());
     }
     if (numCols != other.numCols()) {
       throw new CardinalityException(numCols, other.numCols());
     }
-    Path outPath = new Path(rowPath.getParent(), "projectionOn-" + (System.nanoTime() & 0xFFFF));
+
+    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+    Configuration conf =
+        MatrixAdditionJob.createMatrixAdditionJobConf(initialConf,
+                                                            rowPath,
+                                                            other.rowPath,
+                                                            outPath,
+                                                            multiplier);
+    JobClient.runJob(new JobConf(conf));
+    DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
+    out.setConf(conf);
+    return out;
+  }
+  
+  
+  /**
+   * This returns a matrix P based on current matrix X and other matrix Y (same dimensions as X) where Pij = Xij (if Yij != 0) and Pij = 0 (if Yij == 0)  
+	 * @param outPath the output row path of the resultant matrix
+   * @param other   a DistributedRowMatrix
+   * @return    a DistributedRowMatrix containing the projection onto other
+   */
+  public DistributedRowMatrix projection(Path outPath, DistributedRowMatrix other) throws IOException {
+    if (numRows != other.numRows()) {
+      throw new CardinalityException(numRows, other.numRows());
+    }
+    if (numCols != other.numCols()) {
+      throw new CardinalityException(numCols, other.numCols());
+    }
 
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
     Configuration conf =
@@ -248,6 +288,21 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     return mean;
   }
 
+  public double frobeniusNorm() throws IOException {
+    Configuration initialConf = new Configuration();
+
+    Path outputPath = new Path(this.outputTmpPath, "frobeniusNorm-" + (System.nanoTime() & 0xFFFF));
+
+    double norm = MatrixFrobeniusNormJob.run(initialConf, rowPath, outputPath);
+
+    if (!keepTempFiles) {
+      FileSystem fs = outputPath.getFileSystem(conf);
+      fs.delete(outputPath, true);
+    }
+
+    return norm;
+  }
+  
   /**
 	 * Calculate an estimate the 2-norm of a matrix.  This should be lighter weight than having to do a full SVD?  I'll need to run a series of tests to know...
 	 * Algorithm converted from matlab code from here: http://chmielowski.eu/POLITECHNIKA/Dydaktyka/AUTOMATYKA/AutoLab/Matlab/TOOLBOX/MATLAB/SPARFUN/NORMEST.M
@@ -472,7 +527,10 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 
 	public DistributedRowMatrix times(double d) throws IOException {
     Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFFFF));
+    return times(outPath, d);
+	}
 
+ public DistributedRowMatrix times(Path outPath, double d) throws IOException {
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
     Configuration conf =
         MatrixScalarMultiplicationJob.createMatrixScalarMultiplyJobConf(initialConf,
@@ -489,18 +547,18 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	/* Returns a new DistributedRowMatrix containing a subset of the columns of the current matrix, from colIdxStart to colIdxEnd.  All rows.
 	 *   Using 0-based indexes. */
 	//TODO: write some unit tests if I'm going to keep this....
-	public DistributedRowMatrix viewColumns(int colIdxStart, int colIdxEnd) throws IOException {
-		return viewPart(0, this.numRows - 1, colIdxStart, colIdxEnd);
+	public DistributedRowMatrix viewColumns(Path outputPath, int colIdxStart, int colIdxEnd) throws IOException {
+		return viewPart(outputPath, 0, this.numRows - 1, colIdxStart, colIdxEnd);
 	}
 	
-	public DistributedRowMatrix viewRows(int rowIdxStart, int rowIdxEnd) throws IOException {
-		return viewPart(rowIdxStart, rowIdxEnd, 0, this.numCols - 1);
+	public DistributedRowMatrix viewRows(Path outputPath, int rowIdxStart, int rowIdxEnd) throws IOException {
+		return viewPart(outputPath, rowIdxStart, rowIdxEnd, 0, this.numCols - 1);
 	}
 
 	
 	/* Returns a new DistributedRowMatrix containing the specified part of current matrix.  Using 0-based indexes. */
 	//TODO: write some unit tests if I'm going to keep this....
-	public DistributedRowMatrix viewPart(int rowIdxStart, int rowIdxEnd, int colIdxStart, int colIdxEnd) throws IOException {
+	public DistributedRowMatrix viewPart(Path outputPath, int rowIdxStart, int rowIdxEnd, int colIdxStart, int colIdxEnd) throws IOException {
 		//sanity check params:
     if (rowIdxStart > rowIdxEnd || rowIdxStart < 0 || rowIdxEnd < 0 || rowIdxEnd >= this.numRows) {
       throw new IOException("Invalid index for rowIdxStart (" + rowIdxStart + " or rowIdxEnd (" + rowIdxEnd + "), vs numRows (" + numRows + ")");
@@ -510,7 +568,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     }
 
 		
-    Path outPath = new Path(rowPath.getParent(), rowPath.getName() + "-viewPart-" + rowIdxStart + "-" + rowIdxEnd + "-" + colIdxStart + "-" + colIdxEnd);
+//    Path outPath = new Path(rowPath.getParent(), rowPath.getName() + "-viewPart-" + rowIdxStart + "-" + rowIdxEnd + "-" + colIdxStart + "-" + colIdxEnd);
 
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
     Configuration conf =
@@ -520,9 +578,9 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             rowIdxEnd,
                                                             colIdxStart,
                                                             colIdxEnd,
-                                                            outPath);
+                                                            outputPath);
     JobClient.runJob(new JobConf(conf));
-    DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, (rowIdxEnd-rowIdxStart+1), (colIdxEnd-colIdxStart+1));
+    DistributedRowMatrix out = new DistributedRowMatrix(outputPath, outputTmpPath, (rowIdxEnd-rowIdxStart+1), (colIdxEnd-colIdxStart+1));
     out.setConf(conf);
     return out;	
 	}
