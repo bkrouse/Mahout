@@ -209,10 +209,10 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
     if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
     		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
+    		other.setConf(initialConf);
     }    			
 
-    conf =
-        MatrixMultiplicationJob.createMatrixMultiplyJobConf(initialConf,
+    conf = MatrixMultiplicationJob.createMatrixMultiplyJobConf(initialConf,
                                                             rowPath,
                                                             other.rowPath,
                                                             outPath,
@@ -237,7 +237,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                           numPartitions);
       JobClient.runJob(new JobConf(conf));
       DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
-      out.setConf(conf);
+      out.setConf(initialConf);
       return out;
   }
   

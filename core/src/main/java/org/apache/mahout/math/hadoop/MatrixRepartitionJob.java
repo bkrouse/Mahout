@@ -17,16 +17,23 @@
 
 package org.apache.mahout.math.hadoop;
 
+import java.io.IOException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
+import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
+import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
+import org.apache.hadoop.mapred.lib.IdentityMapper;
+import org.apache.hadoop.mapred.lib.IdentityReducer;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.math.VectorWritable;
@@ -43,8 +50,8 @@ public class MatrixRepartitionJob extends AbstractJob {
     conf.setOutputFormat(SequenceFileOutputFormat.class);
     FileInputFormat.setInputPaths(conf, path);
     FileOutputFormat.setOutputPath(conf, outPath);
-    conf.setMapperClass(Mapper.class);
-    conf.setReducerClass(Reducer.class);
+    conf.setMapperClass(IdentityMapper.class);
+    conf.setReducerClass(IdentityReducer.class);
     conf.setOutputKeyClass(IntWritable.class);
     conf.setOutputValueClass(VectorWritable.class);
     conf.setNumReduceTasks(numPartitions);
@@ -60,5 +67,16 @@ public class MatrixRepartitionJob extends AbstractJob {
     throw new Exception("Not implemented");
   }
 
-
+  public static class MatrixRepartitionMapper extends MapReduceBase
+	  implements Mapper<IntWritable,VectorWritable,IntWritable,VectorWritable> {
+				
+		@Override
+		public void map(IntWritable index,
+										VectorWritable v,
+		                OutputCollector<IntWritable,VectorWritable> out,
+		                Reporter reporter) throws IOException {
+		
+		  out.collect(index, v);
+	}
+}
 }

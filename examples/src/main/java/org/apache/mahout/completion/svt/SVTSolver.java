@@ -308,16 +308,32 @@ public class SVTSolver extends AbstractJob {
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix DiagS = svd.getDiagS(conf);
       DiagS.setConf(conf);    	
-    	DistributedRowMatrix Utrans = svd.U.transpose(new Path(iterationWorkingPath,"Utrans"), 3); 
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "getDiagS", timingEnd - timingStart);
+
+    	timingStart = System.currentTimeMillis();
+    	DistributedRowMatrix Utrans = svd.U.transpose(new Path(iterationWorkingPath,"Utrans")); 
     	Utrans.setConf(conf);
-    	DistributedRowMatrix Vtrans = svd.V.transpose(new Path(iterationWorkingPath,"Vtrans"), 3);  
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "Utrans", timingEnd - timingStart);
+
+    	timingStart = System.currentTimeMillis();
+  		DistributedRowMatrix Vtrans = svd.V.transpose(new Path(iterationWorkingPath,"Vtrans"));  
     	Vtrans.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "Vtrans", timingEnd - timingStart);
+    	
+    	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix SV = DiagS.times(Vtrans, new Path(iterationWorkingPath,"SV")); 
     	SV.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "SV=DiagS.times(Vtrans)", timingEnd - timingStart);
+
+    	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix X = Utrans.times(SV, new Path(iterationWorkingPath,"X")); 
     	X.setConf(conf);
     	timingEnd = System.currentTimeMillis();
-    	writeTimingResults(k, "transposingAndTimesingAndStuff", timingEnd - timingStart);
+    	writeTimingResults(k, "X=Utrans.times(SV)", timingEnd - timingStart);
     	  	
 
     	//checking stopping conditions
@@ -522,6 +538,6 @@ public class SVTSolver extends AbstractJob {
   }
   
   private void writeTimingResults(int iterationNum, String label, long timing) throws IOException {
-  	log.info("SVTSolver: iterationNum="+iterationNum + "label=," + label + ",timing=," + timing);
+  	log.info("SVTSolver: iterationNum="+iterationNum + ",label=," + label + ",timing=," + timing);
   }
 }
