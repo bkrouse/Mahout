@@ -302,14 +302,15 @@ public class SVTSolver extends AbstractJob {
 
     	//calculate X = U'*S*V -- with truncated singular values
     	//currently assuming I can just hard-code 1 partition coming back....that may change with larger data sets?  Dunno
+    	//TODO: maybe I dynamically discover the "natural" partition size, and use that?
     	//exactly what SSVD will return in those cases...
     	//not sure why it matters...but I was getting weird results until I setConf(conf) on each matrix.
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix DiagS = svd.getDiagS(conf);
       DiagS.setConf(conf);    	
-    	DistributedRowMatrix Utrans = svd.U.transpose(new Path(iterationWorkingPath,"Utrans"), 1); 
+    	DistributedRowMatrix Utrans = svd.U.transpose(new Path(iterationWorkingPath,"Utrans"), 3); 
     	Utrans.setConf(conf);
-    	DistributedRowMatrix Vtrans = svd.V.transpose(new Path(iterationWorkingPath,"Vtrans"), 1);  
+    	DistributedRowMatrix Vtrans = svd.V.transpose(new Path(iterationWorkingPath,"Vtrans"), 3);  
     	Vtrans.setConf(conf);
     	DistributedRowMatrix SV = DiagS.times(Vtrans, new Path(iterationWorkingPath,"SV")); 
     	SV.setConf(conf);
@@ -521,6 +522,6 @@ public class SVTSolver extends AbstractJob {
   }
   
   private void writeTimingResults(int iterationNum, String label, long timing) throws IOException {
-  	log.info("SVTSolver: iterationNum="+iterationNum + "label=," + label + "timing=," + timing);
+  	log.info("SVTSolver: iterationNum="+iterationNum + "label=," + label + ",timing=," + timing);
   }
 }

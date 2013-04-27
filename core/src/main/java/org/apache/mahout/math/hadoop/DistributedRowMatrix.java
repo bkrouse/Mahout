@@ -24,12 +24,20 @@ import java.util.Iterator;
 
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
+import org.apache.hadoop.mapred.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.PathFilters;
 import org.apache.mahout.common.iterator.sequencefile.PathType;
@@ -193,9 +201,17 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     if (numRows != other.numRows()) {
       throw new CardinalityException(numRows, other.numRows());
     }
-
+    
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
-    Configuration conf =
+
+    //check the sequence file structure of each -- and repartition other if they don't match
+    SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
+    SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
+    if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
+    		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
+    }    			
+
+    conf =
         MatrixMultiplicationJob.createMatrixMultiplyJobConf(initialConf,
                                                             rowPath,
                                                             other.rowPath,
@@ -205,6 +221,59 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());
     out.setConf(conf);
     return out;
+  }
+  
+/*
+ * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
+ * This is needed as a part of times(), which assumes the partitions of both matrices match 
+ */
+  public DistributedRowMatrix repartitionMatrix(int numPartitions) throws IOException {
+		Path repartitionedPath = new Path(this.rowPath.toString() + "-repartitioned-" + (System.nanoTime() & 0xFFFF));
+    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+
+    Configuration conf = MatrixRepartitionJob.createMatrixRepartitionJobConf(initialConf,
+                                                          this.rowPath,
+                                                          repartitionedPath,
+                                                          numPartitions);
+      JobClient.runJob(new JobConf(conf));
+      DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
+      out.setConf(conf);
+      return out;
+  }
+  
+  public DistributedRowMatrix.SequenceFileInfo getSequenceFileInfo(DistributedRowMatrix matrix) throws IOException
+  {
+  	int numPartitions;
+  	long size = 0;
+  	
+  	FileSystem fs = matrix.rowPath.getFileSystem(matrix.conf);
+  	FileStatus[] files = fs.listStatus(matrix.rowPath, new PathFilter() {
+	  	  @Override
+	  	  public boolean accept(Path path) {
+	  	    return !path.getName().startsWith("_"); //filter out "_SUCCESS" and "_LOGS"
+	  	}
+  	});
+  	  
+  	for(int i=0; i<files.length; i++)
+  	{
+    	size += files[i].getBlockSize();  	
+  	}
+  	
+  	numPartitions = files.length;
+  	
+  	return new SequenceFileInfo(numPartitions, size);
+  }
+  
+  
+  public class SequenceFileInfo
+  {
+  	public SequenceFileInfo(int NumPartitions, long Size)
+  	{
+  		this.NumPartitions = NumPartitions;
+  		this.Size = Size;
+  	}
+  	public int NumPartitions;
+  	public long Size;
   }
   
 
