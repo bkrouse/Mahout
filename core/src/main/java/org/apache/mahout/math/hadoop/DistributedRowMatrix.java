@@ -293,6 +293,16 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     }
 
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+
+    //check the sequence file structure of each -- and repartition other if they don't match
+    SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
+    SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
+    if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
+    		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
+    		other.setConf(initialConf);
+    }    			
+
+    
     Configuration conf =
         MatrixAdditionJob.createMatrixAdditionJobConf(initialConf,
                                                             rowPath,
@@ -321,6 +331,16 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     }
 
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+
+    //check the sequence file structure of each -- and repartition other if they don't match
+    SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
+    SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
+    if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
+    		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
+    		other.setConf(initialConf);
+    }    			
+
+    
     Configuration conf =
         MatrixProjectionJob.createMatrixProjectionJobConf(initialConf,
                                                             rowPath,
