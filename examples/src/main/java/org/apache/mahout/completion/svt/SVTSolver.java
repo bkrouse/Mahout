@@ -340,11 +340,20 @@ public class SVTSolver extends AbstractJob {
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix XminusM = X.plus(new Path(iterationWorkingPath, "XminusM"), matrix, -1);
     	XminusM.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "XMinusM", timingEnd - timingStart);
+
+    	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix XminusMonOmega = XminusM.projection(new Path(iterationWorkingPath, "XminusMonOmega"), matrix);
     	XminusMonOmega.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "XminusM.projectiong(Omega)", timingEnd - timingStart);
+
+    	
+    	timingStart = System.currentTimeMillis();
     	double relRes = XminusMonOmega.frobeniusNorm() / matrixFrobNorm; 
     	timingEnd = System.currentTimeMillis();
-    	writeTimingResults(k, "checkStoppingConditions", timingEnd - timingStart);
+    	writeTimingResults(k, "XminusMonOmega.frobeniusNorm() / matrixFrobNorm", timingEnd - timingStart);
     	
     	
     	//write results from this iteration to output log
@@ -362,10 +371,14 @@ public class SVTSolver extends AbstractJob {
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix YplusStep = Y.plus(new Path(iterationWorkingPath, "YplusStep"), XminusM, -1*stepSize); //this is same as Y + delta*Projection(M-X) -- just re-using XminusM 
     	YplusStep.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "YplusStep", timingEnd - timingStart);
+
+    	timingStart = System.currentTimeMillis();
     	Y = YplusStep.projection(new Path(iterationWorkingPath,"Y"), matrix);  
     	Y.setConf(conf);
     	timingEnd = System.currentTimeMillis();
-    	writeTimingResults(k, "calculateNextY", timingEnd - timingStart);
+    	writeTimingResults(k, "YplusStep.projection(Omega)", timingEnd - timingStart);
     		    	
     	//TODO - add the option to clean up last iteration's working directory?
     }
