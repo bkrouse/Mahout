@@ -206,6 +206,19 @@ public class SVTSolver extends AbstractJob {
   	
     FileSystem fs = outputPath.getFileSystem(conf);
     
+    //temp:
+//    Path p = new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp/Y-repartitioned-52584");
+//    DistributedRowMatrix Ytemp = new DistributedRowMatrix(p, workingPath, numRows, numCols);
+//    Ytemp.setConf(conf);
+//    SVD svdTemp= computeSVD(conf, workingPath, Ytemp, 14);
+//    Ytemp.repartitionMatrix(3);
+
+//	  Path pathVtrans = new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp/svt-working/1/Vtrans");
+//	  DistributedRowMatrix VtransTemp = new DistributedRowMatrix(pathVtrans, workingPath, numRows, numCols);
+//	  VtransTemp.setConf(conf);
+//  	DistributedRowMatrix SV = DiagS.times(Vtrans, new Path(iterationWorkingPath,"SV")); 
+
+    
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
   		fs.delete(outputPath, true);
@@ -296,7 +309,7 @@ public class SVTSolver extends AbstractJob {
     	//but in my current workaround that uses SSVD, I need to just quickly pull out the first r+1 vectors
     	//so until I switch to Lanczos...we'll just hack something together that works, even if it's a bit expensive
     	timingStart = System.currentTimeMillis();
-    	svd.truncateAndThreshold(r, threshold);    	
+    	svd.truncateAndThreshold(conf, r, threshold);    	
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "truncateAndThreshold", timingEnd - timingStart);
 
@@ -381,6 +394,8 @@ public class SVTSolver extends AbstractJob {
     	writeTimingResults(k, "YplusStep.projection(Omega)", timingEnd - timingStart);
     		    	
     	//TODO - add the option to clean up last iteration's working directory?
+    	
+    	this.writeIterationResults(k, r, relRes, System.currentTimeMillis());
     }
     
     //move U, S and V to the outputPath
@@ -499,9 +514,11 @@ public class SVTSolver extends AbstractJob {
   	public SVD() 
   	{}
   	
-  	public void truncateAndThreshold(int r, double threshold) throws IOException {
+  	public void truncateAndThreshold(Configuration conf, int r, double threshold) throws IOException {
     	U = U.viewColumns(new Path(U.getRowPath().getParent(),U_THRESHOLDED_REL_PATH), 0, r); //in terms of indexes -- start index of 0, end index of r
+    	U.setConf(conf);
     	V = V.viewColumns(new Path(U.getRowPath().getParent(),V_THRESHOLDED_REL_PATH), 0, r);
+    	V.setConf(conf);
     	S = S.viewPart(0, r+1).plus(threshold*-1);  //viewPart(startIndex, length) -- since r is end index, want r+1 as length
 			
 		}

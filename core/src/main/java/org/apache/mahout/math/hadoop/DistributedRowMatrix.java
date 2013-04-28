@@ -225,7 +225,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
   
 /*
  * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
- * This is needed as a part of times(), which assumes the partitions of both matrices match 
+ * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
  */
   public DistributedRowMatrix repartitionMatrix(int numPartitions) throws IOException {
 		Path repartitionedPath = new Path(this.rowPath.toString() + "-repartitioned-" + (System.nanoTime() & 0xFFFF));
