@@ -205,20 +205,15 @@ public class SVTSolver extends AbstractJob {
   	log.info("SVTSolver: start");
   	
     FileSystem fs = outputPath.getFileSystem(conf);
-    
-//    //temp:
-//    Path p = new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp2/svt-working/1/Y");
-//    DistributedRowMatrix Ytemp = new DistributedRowMatrix(p, workingPath, numRows, numCols);
-//    Ytemp.setConf(conf);
-////    SVD svdTemp= computeSVD(conf, workingPath, Ytemp, 14);
-//    Ytemp.repartitionMatrix(1);
-    
-//	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp2/sampled-m-repartitioned-32605"), workingPath, numRows, numCols);
-//	  matrixtmp.setConf(conf);
-//	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp2/svt-working/1/XminusM-repartitioned-19928"), workingPath, numRows, numCols);
-//	  XminusMtemp.setConf(conf);
-//	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp/svt-working/1/XminusMonOmegatmp"), matrixtmp);
+        
+	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-6137"), workingPath, numRows, numCols);
+	  matrixtmp.setConf(conf);
+	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/XminusM-repartitioned-61697"), workingPath, numRows, numCols);
+	  XminusMtemp.setConf(conf);
+	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
 
+	  if(1==1)
+	  	return;
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
@@ -361,7 +356,7 @@ public class SVTSolver extends AbstractJob {
     	DistributedRowMatrix XminusMonOmega = XminusM.projection(new Path(iterationWorkingPath, "XminusMonOmega"), matrix);
     	XminusMonOmega.setConf(conf);
     	timingEnd = System.currentTimeMillis();
-    	writeTimingResults(k, "XminusM.projectiong(Omega)", timingEnd - timingStart);
+    	writeTimingResults(k, "XminusM.projection(Omega)", timingEnd - timingStart);
 
     	
     	timingStart = System.currentTimeMillis();
@@ -370,12 +365,12 @@ public class SVTSolver extends AbstractJob {
     	writeTimingResults(k, "XminusMonOmega.frobeniusNorm() / matrixFrobNorm", timingEnd - timingStart);
     	
     	
-    	//write results from this iteration to output log
-    	long iterationEnd = System.currentTimeMillis();
-    	writeIterationResults(k, r, relRes, iterationEnd - iterationStart);
-    	
+    	//log and exit if we're within goal tolerance -- or bail when it diverges
     	if (relRes <= tolerance)
+    	{
+      	writeIterationResults(k, r, relRes, System.currentTimeMillis() - iterationStart);
     		break;
+    	}
     	else if (relRes > DIVERGENCE) {
     		throw new IOException("relRes diverged in iteration " + Integer.toString(k));
     	}
@@ -569,6 +564,6 @@ public class SVTSolver extends AbstractJob {
   }
   
   private void writeTimingResults(int iterationNum, String label, long timing) throws IOException {
-  	log.info("SVTSolver: iterationNum="+iterationNum + ",label=," + label + ",timing=," + timing);
+  	log.info("SVTSolver: iterationNum="+iterationNum + ",label=" + label + ",timing=" + timing);
   }
 }
