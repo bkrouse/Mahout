@@ -45,8 +45,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class MatrixProjectionJob extends AbstractJob {
 
+public class MatrixProjectionJob extends AbstractJob {
+	
   private static final Logger log = LoggerFactory.getLogger(MatrixProjectionJob.class);
 
   public static Configuration createMatrixProjectionJobConf(Path aPath, 

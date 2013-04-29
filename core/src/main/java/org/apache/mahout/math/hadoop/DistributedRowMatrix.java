@@ -20,6 +20,7 @@ package org.apache.mahout.math.hadoop;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
@@ -45,6 +46,7 @@ import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.PathFilters;
 import org.apache.mahout.common.iterator.sequencefile.PathType;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileDirIterator;
+import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterator;
 import org.apache.mahout.math.CardinalityException;
 import org.apache.mahout.math.MatrixSlice;
 import org.apache.mahout.math.Vector;
@@ -207,13 +209,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
 
-    //check the sequence file structure of each -- and repartition other if they don't match
-    SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
-    SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
-    if(!thisSeqInfo.compareSizeAndOrder(otherSeqInfo)) {
-    		other = other.repartitionAndReorderSequenceFile(thisSeqInfo);
-    		other.setConf(initialConf);    		
-    }    			
+    other = ensureMatchingPartitionAndOrder(initialConf, other);
 
     conf = MatrixMultiplicationJob.createMatrixMultiplyJobConf(initialConf,
                                                             rowPath,
@@ -245,14 +241,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
 
-    //check the sequence file structure of each -- and repartition other if they don't match
-    SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
-    SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
-    if(!thisSeqInfo.compareSizeAndOrder(otherSeqInfo)) {
-    		other = other.repartitionAndReorderSequenceFile(thisSeqInfo);
-    		other.setConf(initialConf);    		
-    }    			
-
+    other = ensureMatchingPartitionAndOrder(initialConf, other);
     
     Configuration conf =
         MatrixAdditionJob.createMatrixAdditionJobConf(initialConf,
@@ -284,14 +273,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
 
-    //check the sequence file structure of each -- and repartition other if they don't match
-    SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
-    SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
-    if(!thisSeqInfo.compareSizeAndOrder(otherSeqInfo)) {
-    		other = other.repartitionAndReorderSequenceFile(thisSeqInfo);
-    		other.setConf(initialConf);    		
-    }    			
-
+    other = ensureMatchingPartitionAndOrder(initialConf, other);
     
     Configuration conf =
         MatrixProjectionJob.createMatrixProjectionJobConf(initialConf,
@@ -635,30 +617,71 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	}
 	
 
-  
+  private DistributedRowMatrix ensureMatchingPartitionAndOrder(Configuration initialConf, DistributedRowMatrix other) throws IOException {
+    SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
+    SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
+
+    //check the sequence file structure of each -- and repartition other if they don't match
+    if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
+    		other = other.repartitionSequenceFile(thisSeqInfo.NumPartitions);
+    		other.setConf(initialConf);    		
+    }    			
+
+    //check ordering of sequence file -- and re-sort other if they don't match
+    if(!thisSeqInfo.compareOrder(otherSeqInfo)) {
+    	other.reorderSequenceFile(initialConf, otherSeqInfo, thisSeqInfo);
+    }
+    
+    return other;
+  }
+	
+	
 	/*
 	 * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
-	 * Also makes sure that the partitions are numbered the same (i.e. part-00000 has rows 1,3,5,  and part-00001 has rows 0,2,4,etc.)
-	 * TODO: do I need to do anything else to control the partitioning scheme for my output matrices??  E.g., ensure both matrices split even/odd rows, vs first half and second half rows?
 	 * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
 	 */
-	  public DistributedRowMatrix repartitionAndReorderSequenceFile(SequenceFileInfo seqFileInfo) throws IOException {
+	  private DistributedRowMatrix repartitionSequenceFile(int numPartitions) throws IOException {
 			Path repartitionedPath = new Path(this.rowPath.toString() + "-repartitioned-" + (System.nanoTime() & 0xFFFF));
 	    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
 
 	    Configuration conf = MatrixRepartitionJob.createMatrixRepartitionJobConf(initialConf,
 	                                                          this.rowPath,
 	                                                          repartitionedPath,
-	                                                          seqFileInfo.NumPartitions);
+	                                                          numPartitions);
 	      RunningJob job = JobClient.runJob(new JobConf(conf));
 	      job.waitForCompletion();
 	      DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
 	      out.setConf(initialConf);
-	      
-	      //TODO: do the reordering as well
-	      
-	      
+	      	      
 	      return out;
+	  }
+	  
+	/*
+	 * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
+	 * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
+	 */
+	  private void reorderSequenceFile(Configuration conf, SequenceFileInfo from, SequenceFileInfo to) throws IOException {
+	  	FileSystem fs = to.Files[0].getPath().getFileSystem(conf);
+
+	  	//rename all the files to temp...to clear the space
+	  	for(int i=0; i<from.Files.length; i++)
+	  	{
+	  		Path tmpPath = new Path(from.Files[i].getPath().getParent(), from.Files[i].getPath().getName() + "-tmp");
+	  		fs.rename(from.Files[i].getPath(), tmpPath);
+	  	}
+	  	
+	  	//build a lookup from my destination's SequenceFileInfo.FileOrdering information
+	  	HashMap<Integer, String> toFilesHashMap = new HashMap<Integer,String>();
+	  	for(int i=0; i<to.Files.length; i++) {
+	  		toFilesHashMap.put(to.FileOrdering[i], to.Files[i].getPath().getName());
+	  	}
+	  	
+	  	//rename all the files to match target ordering
+	  	for(int i=0; i<from.Files.length; i++) {
+	  		Path tmpPath = new Path(from.Files[i].getPath().getParent(), from.Files[i].getPath().getName() + "-tmp");
+	  		Path toPath = new Path(from.Files[i].getPath().getParent(), toFilesHashMap.get(from.FileOrdering[i]));
+	  		fs.rename(tmpPath, toPath);
+	  	}
 	  }
 	  
 	  public DistributedRowMatrix.SequenceFileInfo getSequenceFileInfo(DistributedRowMatrix matrix) throws IOException
@@ -674,33 +697,61 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 		  	}
 	  	});
 	  	  
+	  	numPartitions = files.length;
+
+	  	int[] fileOrdering = new int[files.length];
 	  	for(int i=0; i<files.length; i++)
 	  	{
-	    	size += files[i].getBlockSize();  	
+	    	size += files[i].getBlockSize();
+	    	fileOrdering[i] = getSequenceFilePartFirstRowIndex(matrix.conf, files[i]);
 	  	}
 	  	
-	  	numPartitions = files.length;
 	  	
-	  	return new SequenceFileInfo(numPartitions, size);
+	  	return new SequenceFileInfo(numPartitions, size, fileOrdering, files);
 	  }
 
+	  /*
+	   * getSequenceFilePartOrdering -- opens a part file (e.g. part-00000), and looks at the first row's index.  Returns this value.
+	   */
+	  private int getSequenceFilePartFirstRowIndex(Configuration conf, FileStatus partFileStatus) throws IOException {
+	  	int row = -1;
+	  	
+      SequenceFileIterator<IntWritable,VectorWritable> seqIterator =
+        new SequenceFileIterator<IntWritable,VectorWritable>(partFileStatus.getPath(), true, conf);
+      
+      if(seqIterator.hasNext()) {
+      	//grab the row index
+      	Pair<IntWritable,VectorWritable> record = seqIterator.next();
+      	IntWritable iw = record.getFirst();
+      	row = iw.get();
+      }
+
+      return row;
+	  }
 	  
 	  public class SequenceFileInfo
 	  {
-			public SequenceFileInfo(int NumPartitions, long Size)
+			public SequenceFileInfo(int NumPartitions, long Size, int[] FileOrdering, FileStatus[] Files)
 	  	{
 	  		this.NumPartitions = NumPartitions;
 	  		this.Size = Size;
+	  		this.FileOrdering = FileOrdering;
+	  		this.Files = Files;
 	  	}
 	  	
 	  	public int NumPartitions;
 	  	public long Size;
+	  	public int[] FileOrdering;
+	  	public FileStatus[] Files;
 	  	
-	  	public boolean compareSizeAndOrder(SequenceFileInfo other)
+	  	public boolean compareOrder(SequenceFileInfo other)
 	  	{
-	  		//TODO: implement order comparison
-
-	  		return (this.NumPartitions==other.NumPartitions);
+	  		for(int i=0; i<this.FileOrdering.length; i++) {
+	  			if(this.FileOrdering[i]!=other.FileOrdering[i])
+	  				return false;
+	  		}
+	  		
+	  		return true;
 	  	}
 	  }
 }
