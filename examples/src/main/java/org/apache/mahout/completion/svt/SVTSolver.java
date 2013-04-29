@@ -206,15 +206,13 @@ public class SVTSolver extends AbstractJob {
   	
     FileSystem fs = outputPath.getFileSystem(conf);
         
-		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
-	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-6137"), workingPath, numRows, numCols);
-	  matrixtmp.setConf(conf);
-	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/XminusM-repartitioned-61697"), workingPath, numRows, numCols);
-	  XminusMtemp.setConf(conf);
-	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
+//		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
+//	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-6137"), workingPath, numRows, numCols);
+//	  matrixtmp.setConf(conf);
+//	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/XminusM-repartitioned-61697"), workingPath, numRows, numCols);
+//	  XminusMtemp.setConf(conf);
+//	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
 
-	  if(1==1)
-	  	return;
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
@@ -358,6 +356,9 @@ public class SVTSolver extends AbstractJob {
     	XminusMonOmega.setConf(conf);
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "XminusM.projection(Omega)", timingEnd - timingStart);
+
+  	  if(1==1)
+  	  	return;
 
     	
     	timingStart = System.currentTimeMillis();
