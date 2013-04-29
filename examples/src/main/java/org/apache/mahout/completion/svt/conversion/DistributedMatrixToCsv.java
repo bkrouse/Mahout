@@ -83,8 +83,14 @@ public final class DistributedMatrixToCsv extends AbstractJob {
       
       while(seqIterator.hasNext()) {
       	Pair<IntWritable,VectorWritable> record = seqIterator.next();
-      	VectorWritable vw = record.getSecond();      	
       	
+      	//write the row index
+      	IntWritable iw = record.getFirst();
+      	Integer row = iw.get();
+      	writer.write(String.valueOf(row));
+      	writer.write(DELIMITER);
+      	
+      	VectorWritable vw = record.getSecond();      	
       	Vector vector = vw.get(); 
  
       	//this could be sparse...not sure it's efficient to access in this fashion, but oh well

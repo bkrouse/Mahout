@@ -41,7 +41,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 public class MatrixProjectionJob extends AbstractJob {
+
+  private static final Logger log = LoggerFactory.getLogger(MatrixProjectionJob.class);
 
   public static Configuration createMatrixProjectionJobConf(Path aPath, 
                                                           Path bPath, 
@@ -64,6 +70,7 @@ public class MatrixProjectionJob extends AbstractJob {
     conf.setMapOutputValueClass(VectorWritable.class);
     conf.setOutputKeyClass(IntWritable.class);
     conf.setOutputValueClass(VectorWritable.class);
+    conf.setNumReduceTasks(0);
     return conf;
   }
 
@@ -112,7 +119,9 @@ public class MatrixProjectionJob extends AbstractJob {
                     TupleWritable v,
                     OutputCollector<IntWritable,VectorWritable> out,
                     Reporter reporter) throws IOException {
-    	
+
+    	log.info("start: " + index.get());
+    	log.info("v: " + v.toString());
     	//TODO: will I always get an entire row here?  Or will Hadoop sometimes split this up?
     	//TODO: will rowFrag always be at 0, and omegaFrag at 1?
     	Vector rowFrag = ((VectorWritable)v.get(0)).get();
@@ -127,6 +136,10 @@ public class MatrixProjectionJob extends AbstractJob {
         	outVector.setQuick(e.index(), e.get());
       }
       out.collect(index, new VectorWritable(outVector));
+
+      log.info("outVector: " + outVector.toString());
+      log.info("end: " + index.get());
+
     }
   }
 

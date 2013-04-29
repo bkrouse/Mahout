@@ -565,7 +565,7 @@ public class SVTSolver extends AbstractJob {
   }
 
   private void writeIterationResults(int iterationNum, int rank, double relativeResidual, long iterationTiming) throws IOException {
-  	log.info("SVTSolver: iterationNum=" + iterationNum + ",iterationNum=" + Integer.toString(rank+1) + ",relativeResidual=" + relativeResidual + ",iterationTiming=" + iterationTiming);
+  	log.info("SVTSolver: iterationNum=" + iterationNum + ",rank=" + Integer.toString(rank+1) + ",relativeResidual=" + relativeResidual + ",iterationTiming=" + iterationTiming);
   }
   
   private void writeTimingResults(int iterationNum, String label, long timing) throws IOException {
