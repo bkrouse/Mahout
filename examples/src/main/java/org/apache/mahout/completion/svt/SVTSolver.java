@@ -208,9 +208,9 @@ public class SVTSolver extends AbstractJob {
         
 
 		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
-	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
+	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
 	  matrixtmp.setConf(conf);
-	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "svt-working/1/XminusM"), workingPath, numRows, numCols);
+	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/XminusM"), workingPath, numRows, numCols);
 	  XminusMtemp.setConf(conf);
 	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
 

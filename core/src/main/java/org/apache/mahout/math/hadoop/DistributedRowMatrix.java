@@ -22,6 +22,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Iterator;
 
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -208,9 +210,9 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     //check the sequence file structure of each -- and repartition other if they don't match
     SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
     SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
-    if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
-    		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
-    		other.setConf(initialConf);
+    if(!thisSeqInfo.compareSizeAndOrder(otherSeqInfo)) {
+    		other = other.repartitionAndReorderSequenceFile(thisSeqInfo);
+    		other.setConf(initialConf);    		
     }    			
 
     conf = MatrixMultiplicationJob.createMatrixMultiplyJobConf(initialConf,
@@ -224,63 +226,9 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     out.setConf(initialConf);
     return out;
   }
-  
-/*
- * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
- * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
- */
-  public DistributedRowMatrix repartitionMatrix(int numPartitions) throws IOException {
-		Path repartitionedPath = new Path(this.rowPath.toString() + "-repartitioned-" + (System.nanoTime() & 0xFFFF));
-    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
 
-    Configuration conf = MatrixRepartitionJob.createMatrixRepartitionJobConf(initialConf,
-                                                          this.rowPath,
-                                                          repartitionedPath,
-                                                          numPartitions);
-      RunningJob job = JobClient.runJob(new JobConf(conf));
-      job.waitForCompletion();
-      DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
-      out.setConf(initialConf);
-      return out;
-  }
   
-  public DistributedRowMatrix.SequenceFileInfo getSequenceFileInfo(DistributedRowMatrix matrix) throws IOException
-  {
-  	int numPartitions;
-  	long size = 0;
-  	
-  	FileSystem fs = matrix.rowPath.getFileSystem(matrix.conf);
-  	FileStatus[] files = fs.listStatus(matrix.rowPath, new PathFilter() {
-	  	  @Override
-	  	  public boolean accept(Path path) {
-	  	    return !path.getName().startsWith("_"); //filter out "_SUCCESS" and "_LOGS"
-	  	}
-  	});
-  	  
-  	for(int i=0; i<files.length; i++)
-  	{
-    	size += files[i].getBlockSize();  	
-  	}
-  	
-  	numPartitions = files.length;
-  	
-  	return new SequenceFileInfo(numPartitions, size);
-  }
-  
-  
-  public class SequenceFileInfo
-  {
-  	public SequenceFileInfo(int NumPartitions, long Size)
-  	{
-  		this.NumPartitions = NumPartitions;
-  		this.Size = Size;
-  	}
-  	public int NumPartitions;
-  	public long Size;
-  }
-  
-
-  /**
+   /**
    * This implements this + other*multiplier
 	 * @param outPath	path for resultant DistributedRowMatrix
    * @param other   a DistributedRowMatrix
@@ -300,9 +248,9 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     //check the sequence file structure of each -- and repartition other if they don't match
     SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
     SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
-    if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
-    		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
-    		other.setConf(initialConf);
+    if(!thisSeqInfo.compareSizeAndOrder(otherSeqInfo)) {
+    		other = other.repartitionAndReorderSequenceFile(thisSeqInfo);
+    		other.setConf(initialConf);    		
     }    			
 
     
@@ -339,14 +287,9 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     //check the sequence file structure of each -- and repartition other if they don't match
     SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
     SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
-    if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
-    		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
-    		other.setConf(initialConf);
-    		
-    		//TODO: just trying stuff...
-    		try {
-    			conf.wait(5000);
-    		} catch (Exception e) {}
+    if(!thisSeqInfo.compareSizeAndOrder(otherSeqInfo)) {
+    		other = other.repartitionAndReorderSequenceFile(thisSeqInfo);
+    		other.setConf(initialConf);    		
     }    			
 
     
@@ -690,4 +633,74 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     out.setConf(initialConf);
     return out;	
 	}
+	
+
+  
+	/*
+	 * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
+	 * Also makes sure that the partitions are numbered the same (i.e. part-00000 has rows 1,3,5,  and part-00001 has rows 0,2,4,etc.)
+	 * TODO: do I need to do anything else to control the partitioning scheme for my output matrices??  E.g., ensure both matrices split even/odd rows, vs first half and second half rows?
+	 * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
+	 */
+	  public DistributedRowMatrix repartitionAndReorderSequenceFile(SequenceFileInfo seqFileInfo) throws IOException {
+			Path repartitionedPath = new Path(this.rowPath.toString() + "-repartitioned-" + (System.nanoTime() & 0xFFFF));
+	    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+
+	    Configuration conf = MatrixRepartitionJob.createMatrixRepartitionJobConf(initialConf,
+	                                                          this.rowPath,
+	                                                          repartitionedPath,
+	                                                          seqFileInfo.NumPartitions);
+	      RunningJob job = JobClient.runJob(new JobConf(conf));
+	      job.waitForCompletion();
+	      DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
+	      out.setConf(initialConf);
+	      
+	      //TODO: do the reordering as well
+	      
+	      
+	      return out;
+	  }
+	  
+	  public DistributedRowMatrix.SequenceFileInfo getSequenceFileInfo(DistributedRowMatrix matrix) throws IOException
+	  {
+	  	int numPartitions;
+	  	long size = 0;
+	  	
+	  	FileSystem fs = matrix.rowPath.getFileSystem(matrix.conf);
+	  	FileStatus[] files = fs.listStatus(matrix.rowPath, new PathFilter() {
+		  	  @Override
+		  	  public boolean accept(Path path) {
+		  	    return !path.getName().startsWith("_"); //filter out "_SUCCESS" and "_LOGS"
+		  	}
+	  	});
+	  	  
+	  	for(int i=0; i<files.length; i++)
+	  	{
+	    	size += files[i].getBlockSize();  	
+	  	}
+	  	
+	  	numPartitions = files.length;
+	  	
+	  	return new SequenceFileInfo(numPartitions, size);
+	  }
+
+	  
+	  public class SequenceFileInfo
+	  {
+			public SequenceFileInfo(int NumPartitions, long Size)
+	  	{
+	  		this.NumPartitions = NumPartitions;
+	  		this.Size = Size;
+	  	}
+	  	
+	  	public int NumPartitions;
+	  	public long Size;
+	  	
+	  	public boolean compareSizeAndOrder(SequenceFileInfo other)
+	  	{
+	  		//TODO: implement order comparison
+
+	  		return (this.NumPartitions==other.NumPartitions);
+	  	}
+	  }
 }

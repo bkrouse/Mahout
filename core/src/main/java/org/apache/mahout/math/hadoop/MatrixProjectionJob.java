@@ -63,7 +63,7 @@ public class MatrixProjectionJob extends AbstractJob {
     conf.setJobName("MatrixProjectionJob: " + aPath + " + " + bPath + " -> " + outPath);
     conf.setInputFormat(CompositeInputFormat.class);
     conf.set("mapred.join.expr", CompositeInputFormat.compose(
-          "inner", SequenceFileInputFormat.class, aPath, bPath));
+          "outer", SequenceFileInputFormat.class, aPath, bPath));
     conf.setOutputFormat(SequenceFileOutputFormat.class);
     FileOutputFormat.setOutputPath(conf, outPath);
     conf.setMapperClass(MatrixProjectionMapper.class);
@@ -127,6 +127,12 @@ public class MatrixProjectionJob extends AbstractJob {
     	//TODO: will rowFrag always be at 0, and omegaFrag at 1?
     	Vector rowFrag = ((VectorWritable)v.get(0)).get();
     	Vector omegaFrag = ((VectorWritable)v.get(1)).get();
+    	
+    	if(rowFrag==null || omegaFrag==null)
+    	{
+    		log.info("ERROR!  Looks like a bad join!");
+    		throw new IOException("MatrixProjectionMapper encountered an outer join with one half null, for row index=" + index.get()  + ".  Usually indicates that the DistributedRowMatrix sequence files are ordered differently.");
+    	}
     	
       //would be better to implement project() on Vector...but I don't want to go through that until I know I'll keep this 
       Vector outVector = new RandomAccessSparseVector(omegaFrag.size());
