@@ -342,6 +342,11 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
     		other = other.repartitionMatrix(thisSeqInfo.NumPartitions);
     		other.setConf(initialConf);
+    		
+    		//TODO: just trying stuff...
+    		try {
+    			conf.wait(5000);
+    		} catch (Exception e) {}
     }    			
 
     
