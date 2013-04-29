@@ -219,7 +219,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             other.numCols);
     JobClient.runJob(new JobConf(conf));
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());
-    out.setConf(conf);
+    out.setConf(initialConf);
     return out;
   }
   
@@ -311,7 +311,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             multiplier);
     JobClient.runJob(new JobConf(conf));
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
-    out.setConf(conf);
+    out.setConf(initialConf);
     return out;
   }
   
@@ -348,7 +348,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             outPath);
     JobClient.runJob(new JobConf(conf));
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
-    out.setConf(conf);
+    out.setConf(initialConf);
     return out;
   }
 
@@ -479,7 +479,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     Configuration conf = TransposeJob.buildTransposeJobConf(initialConf, rowPath, outputPath, numRows, numPartitions);
     JobClient.runJob(new JobConf(conf));
     DistributedRowMatrix m = new DistributedRowMatrix(outputPath, outputTmpPath, numCols, numRows);
-    m.setConf(this.conf);
+    m.setConf(initialConf);
     return m;
   }
 
@@ -629,7 +629,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             outPath);
     JobClient.runJob(new JobConf(conf));
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
-    out.setConf(conf);
+    out.setConf(initialConf);
     return out;	
 	}
 
@@ -671,7 +671,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             outputPath);
     JobClient.runJob(new JobConf(conf));
     DistributedRowMatrix out = new DistributedRowMatrix(outputPath, outputTmpPath, (rowIdxEnd-rowIdxStart+1), (colIdxEnd-colIdxStart+1));
-    out.setConf(conf);
+    out.setConf(initialConf);
     return out;	
 	}
 }

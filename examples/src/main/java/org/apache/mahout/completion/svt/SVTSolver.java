@@ -206,17 +206,18 @@ public class SVTSolver extends AbstractJob {
   	
     FileSystem fs = outputPath.getFileSystem(conf);
     
-    //temp:
-//    Path p = new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp/Y-repartitioned-52584");
+//    //temp:
+//    Path p = new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp2/svt-working/1/Y");
 //    DistributedRowMatrix Ytemp = new DistributedRowMatrix(p, workingPath, numRows, numCols);
 //    Ytemp.setConf(conf);
-//    SVD svdTemp= computeSVD(conf, workingPath, Ytemp, 14);
-//    Ytemp.repartitionMatrix(3);
-
-//	  Path pathVtrans = new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp/svt-working/1/Vtrans");
-//	  DistributedRowMatrix VtransTemp = new DistributedRowMatrix(pathVtrans, workingPath, numRows, numCols);
-//	  VtransTemp.setConf(conf);
-//  	DistributedRowMatrix SV = DiagS.times(Vtrans, new Path(iterationWorkingPath,"SV")); 
+////    SVD svdTemp= computeSVD(conf, workingPath, Ytemp, 14);
+//    Ytemp.repartitionMatrix(1);
+    
+//	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp2/sampled-m-repartitioned-32605"), workingPath, numRows, numCols);
+//	  matrixtmp.setConf(conf);
+//	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp2/svt-working/1/XminusM-repartitioned-19928"), workingPath, numRows, numCols);
+//	  XminusMtemp.setConf(conf);
+//	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data/temp/svt-working/1/XminusMonOmegatmp"), matrixtmp);
 
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
@@ -395,7 +396,7 @@ public class SVTSolver extends AbstractJob {
     		    	
     	//TODO - add the option to clean up last iteration's working directory?
     	
-    	this.writeIterationResults(k, r, relRes, System.currentTimeMillis());
+    	this.writeIterationResults(k, r, relRes, System.currentTimeMillis() - iterationStart);
     }
     
     //move U, S and V to the outputPath
