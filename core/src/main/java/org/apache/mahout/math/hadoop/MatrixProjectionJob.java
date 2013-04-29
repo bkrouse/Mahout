@@ -121,7 +121,7 @@ public class MatrixProjectionJob extends AbstractJob {
                     Reporter reporter) throws IOException {
 
     	log.info("start: " + index.get());
-    	log.debug("v: " + v.toString());
+    	log.info("v: " + v.toString());
     	//TODO: will I always get an entire row here?  Or will Hadoop sometimes split this up?
     	//TODO: will rowFrag always be at 0, and omegaFrag at 1?
     	Vector rowFrag = ((VectorWritable)v.get(0)).get();
@@ -137,8 +137,8 @@ public class MatrixProjectionJob extends AbstractJob {
       }
       out.collect(index, new VectorWritable(outVector));
 
-      log.debug("outVector: " + outVector.toString());
-      log.debug("end: " + index.get());
+      log.info("outVector: " + outVector.toString());
+      log.info("end: " + index.get());
 
     }
   }
