@@ -35,6 +35,7 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -217,7 +218,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             other.rowPath,
                                                             outPath,
                                                             other.numCols);
-    JobClient.runJob(new JobConf(conf));
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());
     out.setConf(initialConf);
     return out;
@@ -235,7 +237,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                           this.rowPath,
                                                           repartitionedPath,
                                                           numPartitions);
-      JobClient.runJob(new JobConf(conf));
+      RunningJob job = JobClient.runJob(new JobConf(conf));
+      job.waitForCompletion();
       DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
       out.setConf(initialConf);
       return out;
@@ -309,7 +312,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             other.rowPath,
                                                             outPath,
                                                             multiplier);
-    JobClient.runJob(new JobConf(conf));
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
     out.setConf(initialConf);
     return out;
@@ -346,7 +350,9 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             rowPath,
                                                             other.rowPath,
                                                             outPath);
-    JobClient.runJob(new JobConf(conf));
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
+
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
     out.setConf(initialConf);
     return out;
@@ -477,7 +483,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
   public DistributedRowMatrix transpose(Path outputPath, int numPartitions) throws IOException {
     Configuration initialConf = getConf() == null ? new Configuration() : getConf();
     Configuration conf = TransposeJob.buildTransposeJobConf(initialConf, rowPath, outputPath, numRows, numPartitions);
-    JobClient.runJob(new JobConf(conf));
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
     DistributedRowMatrix m = new DistributedRowMatrix(outputPath, outputTmpPath, numCols, numRows);
     m.setConf(initialConf);
     return m;
@@ -495,7 +502,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                              numRows,
                                              rowPath,
                                              outputVectorTmpPath);
-      JobClient.runJob(new JobConf(conf));
+      RunningJob job = JobClient.runJob(new JobConf(conf));
+      job.waitForCompletion();
       Vector result = TimesSquaredJob.retrieveTimesSquaredOutputVector(conf);
       if (!keepTempFiles) {
         FileSystem fs = outputVectorTmpPath.getFileSystem(conf);
@@ -518,7 +526,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                     v,
                                                     rowPath,
                                                     outputVectorTmpPath);
-      JobClient.runJob(new JobConf(conf));
+      RunningJob job = JobClient.runJob(new JobConf(conf));
+      job.waitForCompletion();
       Vector result = TimesSquaredJob.retrieveTimesSquaredOutputVector(conf);
       if (!keepTempFiles) {
         FileSystem fs = outputVectorTmpPath.getFileSystem(conf);
@@ -627,7 +636,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             rowPath,
                                                             d,
                                                             outPath);
-    JobClient.runJob(new JobConf(conf));
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numRows, numCols);
     out.setConf(initialConf);
     return out;	
@@ -669,7 +679,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             colIdxStart,
                                                             colIdxEnd,
                                                             outputPath);
-    JobClient.runJob(new JobConf(conf));
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
     DistributedRowMatrix out = new DistributedRowMatrix(outputPath, outputTmpPath, (rowIdxEnd-rowIdxStart+1), (colIdxEnd-colIdxStart+1));
     out.setConf(initialConf);
     return out;	
