@@ -46,6 +46,7 @@ public class MatrixRepartitionJob extends AbstractJob {
                                                           Path outPath, 
                                                           int numPartitions) {  	
   	JobConf conf = new JobConf(initialConf, MatrixRepartitionJob.class);
+    conf.setJobName("MatrixRepartitionJob: " + path + " (numPartitions=" + numPartitions + ") -> " + outPath); 	
     conf.setInputFormat(SequenceFileInputFormat.class);
     conf.setOutputFormat(SequenceFileOutputFormat.class);
     FileInputFormat.setInputPaths(conf, path);

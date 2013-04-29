@@ -62,6 +62,7 @@ public class MatrixMultiplicationJob extends AbstractJob {
                                                           Path outPath, 
                                                           int outCardinality) {
     JobConf conf = new JobConf(initialConf, MatrixMultiplicationJob.class);
+    conf.setJobName("MatrixMultiplicationJob: " + aPath + " + " + bPath + " (outCardinality=" + outCardinality + ") -> " + outPath);
     conf.setInputFormat(CompositeInputFormat.class);
     conf.set("mapred.join.expr", CompositeInputFormat.compose(
           "inner", SequenceFileInputFormat.class, aPath, bPath));

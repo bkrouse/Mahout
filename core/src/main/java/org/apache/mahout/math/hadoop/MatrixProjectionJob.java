@@ -60,6 +60,7 @@ public class MatrixProjectionJob extends AbstractJob {
                                                           Path bPath, 
                                                           Path outPath) {
     JobConf conf = new JobConf(initialConf, MatrixProjectionJob.class);
+    conf.setJobName("MatrixProjectionJob: " + aPath + " + " + bPath + " -> " + outPath);
     conf.setInputFormat(CompositeInputFormat.class);
     conf.set("mapred.join.expr", CompositeInputFormat.compose(
           "inner", SequenceFileInputFormat.class, aPath, bPath));

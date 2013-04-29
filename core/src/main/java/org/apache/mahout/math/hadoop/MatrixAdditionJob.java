@@ -56,6 +56,7 @@ public class MatrixAdditionJob extends AbstractJob {
                                                           Path outPath, 
                                                           double multiplier) {
     JobConf conf = new JobConf(initialConf, MatrixAdditionJob.class);
+    conf.setJobName("MatrixAdditionJob: " + aPath + " + " + bPath + " (multiplier=" + multiplier + ") -> " + outPath);
     conf.setInputFormat(CompositeInputFormat.class);
     conf.set("mapred.join.expr", CompositeInputFormat.compose(
           "inner", SequenceFileInputFormat.class, aPath, bPath));

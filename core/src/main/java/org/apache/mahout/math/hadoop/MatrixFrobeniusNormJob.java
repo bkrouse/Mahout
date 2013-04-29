@@ -65,7 +65,7 @@ public final class MatrixFrobeniusNormJob  {
 
   	try
   	{
-      Job job = new Job(conf, "MatrixFrobeniusNormJob");
+      Job job = new Job(conf, "MatrixFrobeniusNormJob: " + inputPath + " -> " + outputPath);
       job.setJarByClass(MatrixFrobeniusNormJob.class);
 
       

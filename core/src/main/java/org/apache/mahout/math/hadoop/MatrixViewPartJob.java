@@ -59,6 +59,7 @@ public class MatrixViewPartJob extends AbstractJob {
 	public static Configuration createMatrixViewPartJobConf(Configuration initialConf, Path matrixPath, int rowIdxStart, int rowIdxEnd,
 																									int colIdxStart, int colIdxEnd, Path outPath) {
     JobConf conf = new JobConf(initialConf, MatrixViewPartJob.class);
+    conf.setJobName("MatrixViewPartJob: " + matrixPath + " (rowIdxStart=" + rowIdxStart + ", rowIdxEnd=" + rowIdxEnd + ", colIdxStart=" + colIdxStart + ", colIdxEnd=" + colIdxEnd + ") -> " + outPath); 	
     conf.setInputFormat(SequenceFileInputFormat.class);
     FileInputFormat.setInputPaths(conf, matrixPath);    
     conf.setOutputFormat(SequenceFileOutputFormat.class);

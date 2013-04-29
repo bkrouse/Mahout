@@ -54,6 +54,7 @@ public class MatrixScalarMultiplicationJob extends AbstractJob {
                                                           double scalar, 
                                                           Path outPath) {
     JobConf conf = new JobConf(initialConf, MatrixScalarMultiplicationJob.class);
+    conf.setJobName("MatrixScalarMultiplicationJob: " + matrixPath + " (scalar=" + scalar + ") -> " + outPath); 	
     conf.setInputFormat(SequenceFileInputFormat.class);
     FileInputFormat.setInputPaths(conf, matrixPath);    
     conf.setOutputFormat(SequenceFileOutputFormat.class);
