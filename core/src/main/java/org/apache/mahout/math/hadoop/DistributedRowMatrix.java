@@ -625,8 +625,12 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     if(thisSeqInfo.NumPartitions != otherSeqInfo.NumPartitions) {
     		other = other.repartitionSequenceFile(thisSeqInfo.NumPartitions);
     		other.setConf(initialConf);    		
+    		
+    		//get the otherSeqInfo again after repartitioning
+    		otherSeqInfo = getSequenceFileInfo(other);
     }    			
 
+    
     //check ordering of sequence file -- and re-sort other if they don't match
     if(!thisSeqInfo.compareOrder(otherSeqInfo)) {
     	other.reorderSequenceFile(initialConf, otherSeqInfo, thisSeqInfo);
@@ -746,6 +750,9 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	  	
 	  	public boolean compareOrder(SequenceFileInfo other)
 	  	{
+	  		if(this.NumPartitions!=other.NumPartitions)
+	  			return false;
+	  		
 	  		for(int i=0; i<this.FileOrdering.length; i++) {
 	  			if(this.FileOrdering[i]!=other.FileOrdering[i])
 	  				return false;
