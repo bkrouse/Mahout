@@ -204,12 +204,9 @@ public class SVTSolver extends AbstractJob {
   {  	
 
   	//run algorithm to complete the matrix
-  	System.out.println("test: tester");
   	
-  	if(1==1)
-  		return;
-  	log.info("SVTSolver: start");
   	System.out.println("SVTSolver: start");
+  	log.info("SVTSolver: start");
   	
     FileSystem fs = outputPath.getFileSystem(conf);
         
