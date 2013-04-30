@@ -18,7 +18,12 @@
 package org.apache.mahout.completion.svt;
 
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +47,8 @@ import org.apache.mahout.math.hadoop.stochasticsvd.SSVDSolver;
 import org.apache.mahout.math.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Charsets;
 import com.google.common.io.Closeables;
 
 /**
@@ -204,9 +211,15 @@ public class SVTSolver extends AbstractJob {
   {  	
 
   	//run algorithm to complete the matrix
-  	
-  	System.out.println("SVTSolver: start");
   	log.info("SVTSolver: start");
+  	
+  	OutputStream outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
+    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
+
+    writer.write("test that!");
+    writer.newLine();
+    
+    writer.close();
   	
     FileSystem fs = outputPath.getFileSystem(conf);
         
@@ -564,13 +577,10 @@ public class SVTSolver extends AbstractJob {
   private void writeIterationResults(int iterationNum, int rank, double relativeResidual, long iterationTiming) throws IOException {
   	String out = "SVTSolver: iterationNum=" + iterationNum + ",rank=" + Integer.toString(rank+1) + ",relativeResidual=" + relativeResidual + ",iterationTiming=" + iterationTiming;
   	log.info(out);
-  	System.out.println(out);
-
   }
   
   private void writeTimingResults(int iterationNum, String label, long timing) throws IOException {
   	String out = "SVTSolver: iterationNum="+iterationNum + ",label=" + label + ",timing=" + timing;
   	log.info(out);
-  	System.out.println(out);
   }
 }
