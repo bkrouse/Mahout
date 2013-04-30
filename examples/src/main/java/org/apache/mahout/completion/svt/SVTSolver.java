@@ -203,11 +203,6 @@ public class SVTSolver extends AbstractJob {
       boolean overwrite) throws IOException
   {  	
 
-  	System.out.println("test");
-  	
-  	if(1==1)
-  		return;
-  	
   	//run algorithm to complete the matrix
   	log.info("SVTSolver: start");
   	
@@ -565,10 +560,15 @@ public class SVTSolver extends AbstractJob {
   }
 
   private void writeIterationResults(int iterationNum, int rank, double relativeResidual, long iterationTiming) throws IOException {
-  	log.info("SVTSolver: iterationNum=" + iterationNum + ",rank=" + Integer.toString(rank+1) + ",relativeResidual=" + relativeResidual + ",iterationTiming=" + iterationTiming);
+  	String out = "SVTSolver: iterationNum=" + iterationNum + ",rank=" + Integer.toString(rank+1) + ",relativeResidual=" + relativeResidual + ",iterationTiming=" + iterationTiming;
+  	log.info(out);
+  	System.out.println(out);
+
   }
   
   private void writeTimingResults(int iterationNum, String label, long timing) throws IOException {
-  	log.info("SVTSolver: iterationNum="+iterationNum + ",label=" + label + ",timing=" + timing);
+  	String out = "SVTSolver: iterationNum="+iterationNum + ",label=" + label + ",timing=" + timing;
+  	log.info(out);
+  	System.out.println(out);
   }
 }
