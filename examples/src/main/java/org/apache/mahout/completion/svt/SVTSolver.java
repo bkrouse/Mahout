@@ -102,6 +102,9 @@ public class SVTSolver extends AbstractJob {
 	private static String V_THRESHOLDED_REL_PATH = "VThresholded";
 	private static String S_THRESHOLDED_REL_PATH = "DiagS";
 		
+	private  BufferedWriter writer = null;
+
+	
   @Override
   public int run(String[] args) throws Exception {
   	
@@ -214,12 +217,7 @@ public class SVTSolver extends AbstractJob {
   	log.info("SVTSolver: start");
   	
   	OutputStream outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
-    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
-
-    writer.write("test that!");
-    writer.newLine();
-    
-    writer.close();
+  	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
   	
     FileSystem fs = outputPath.getFileSystem(conf);
         
@@ -418,6 +416,8 @@ public class SVTSolver extends AbstractJob {
     }    
     
      
+    writer.close();
+    
   	return;
   }
 
@@ -577,10 +577,17 @@ public class SVTSolver extends AbstractJob {
   private void writeIterationResults(int iterationNum, int rank, double relativeResidual, long iterationTiming) throws IOException {
   	String out = "SVTSolver: iterationNum=" + iterationNum + ",rank=" + Integer.toString(rank+1) + ",relativeResidual=" + relativeResidual + ",iterationTiming=" + iterationTiming;
   	log.info(out);
+    writer.write(out);
+    writer.newLine();
+    writer.flush();
+
   }
   
   private void writeTimingResults(int iterationNum, String label, long timing) throws IOException {
   	String out = "SVTSolver: iterationNum="+iterationNum + ",label=" + label + ",timing=" + timing;
   	log.info(out);
+    writer.write(out);
+    writer.newLine();
+    writer.flush();
   }
 }
