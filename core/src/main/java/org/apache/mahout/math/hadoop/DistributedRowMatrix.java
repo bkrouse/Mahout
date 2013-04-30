@@ -617,7 +617,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	}
 	
 
-  private DistributedRowMatrix ensureMatchingPartitionAndOrder(Configuration initialConf, DistributedRowMatrix other) throws IOException {
+  public DistributedRowMatrix ensureMatchingPartitionAndOrder(Configuration initialConf, DistributedRowMatrix other) throws IOException {
     SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
     SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);
 
@@ -644,7 +644,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	 * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
 	 * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
 	 */
-	  private DistributedRowMatrix repartitionSequenceFile(int numPartitions) throws IOException {
+	  public DistributedRowMatrix repartitionSequenceFile(int numPartitions) throws IOException {
 	    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
 			FileSystem fs = this.rowPath.getFileSystem(initialConf);
 
@@ -670,7 +670,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	 * Used to repartition the matrix to have a given number of partitions in the SequenceFile format (ie. part-00000, part-00001, etc. files in the directory)
 	 * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
 	 */
-	  private void reorderSequenceFile(Configuration conf, SequenceFileInfo from, SequenceFileInfo to) throws IOException {
+	  public void reorderSequenceFile(Configuration conf, SequenceFileInfo from, SequenceFileInfo to) throws IOException {
 	  	FileSystem fs = from.Files[0].getPath().getFileSystem(conf);
 
 	  	//rename all the files to temp...to clear the space

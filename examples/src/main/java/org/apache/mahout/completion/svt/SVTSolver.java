@@ -330,6 +330,9 @@ public class SVTSolver extends AbstractJob {
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "Vtrans", timingEnd - timingStart);
     	
+    	//fix up DiagS to match Vtrans -- since DiagS is small, saves us a larger repartition
+    	DiagS = Vtrans.ensureMatchingPartitionAndOrder(conf, DiagS);
+    	
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix SV = DiagS.times(Vtrans, new Path(iterationWorkingPath,"SV")); 
     	SV.setConf(conf);
@@ -341,7 +344,7 @@ public class SVTSolver extends AbstractJob {
     	X.setConf(conf);
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "X=Utrans.times(SV)", timingEnd - timingStart);
-
+    	
     	
     	//checking stopping conditions
     	timingStart = System.currentTimeMillis();
