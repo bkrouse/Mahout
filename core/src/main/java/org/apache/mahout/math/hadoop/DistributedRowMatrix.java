@@ -645,19 +645,25 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	 * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
 	 */
 	  private DistributedRowMatrix repartitionSequenceFile(int numPartitions) throws IOException {
-			Path repartitionedPath = new Path(this.rowPath.toString() + "-repartitioned-" + (System.nanoTime() & 0xFFFF));
 	    Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+			FileSystem fs = this.rowPath.getFileSystem(initialConf);
 
-	    Configuration conf = MatrixRepartitionJob.createMatrixRepartitionJobConf(initialConf,
-	                                                          this.rowPath,
-	                                                          repartitionedPath,
-	                                                          numPartitions);
+	    Path repartitionedPath = new Path(this.rowPath.toString() + "-repartitioned-" + numPartitions);
+			
+			//assume if the repartitionedPath already exists, that we're good -- otherwise generate it
+			if(!fs.exists(repartitionedPath)) {
+		    Configuration conf = MatrixRepartitionJob.createMatrixRepartitionJobConf(initialConf,
+		                                                          this.rowPath,
+		                                                          repartitionedPath,
+		                                                          numPartitions);
 	      RunningJob job = JobClient.runJob(new JobConf(conf));
 	      job.waitForCompletion();
-	      DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
-	      out.setConf(initialConf);
+			}
+
+			DistributedRowMatrix out = new DistributedRowMatrix(repartitionedPath, outputTmpPath, numRows, numCols);  
+      out.setConf(initialConf);
 	      	      
-	      return out;
+      return out;
 	  }
 	  
 	/*
