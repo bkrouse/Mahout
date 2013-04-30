@@ -251,6 +251,12 @@ public class SVTSolver extends AbstractJob {
     
     DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
     matrix.setConf(conf);
+
+    
+    //repartition my input matrix to see if that results in more mappers
+    matrix = matrix.repartitionSequenceFile(20);
+    matrix.setConf(conf);
+    
     
     //kicking step
   	timingStart = System.currentTimeMillis();
