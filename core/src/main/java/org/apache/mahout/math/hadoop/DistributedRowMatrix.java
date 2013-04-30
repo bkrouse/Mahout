@@ -665,7 +665,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
 	 * This is needed as a part of times(), plus(), etc., which assumes the partitions of both matrices match 
 	 */
 	  private void reorderSequenceFile(Configuration conf, SequenceFileInfo from, SequenceFileInfo to) throws IOException {
-	  	FileSystem fs = to.Files[0].getPath().getFileSystem(conf);
+	  	FileSystem fs = from.Files[0].getPath().getFileSystem(conf);
 
 	  	//rename all the files to temp...to clear the space
 	  	for(int i=0; i<from.Files.length; i++)

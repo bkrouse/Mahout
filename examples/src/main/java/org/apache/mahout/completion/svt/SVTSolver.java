@@ -202,6 +202,7 @@ public class SVTSolver extends AbstractJob {
       int maxIter,
       boolean overwrite) throws IOException
   {  	
+  	//run algorithm to complete the matrix
   	log.info("SVTSolver: start");
   	
     FileSystem fs = outputPath.getFileSystem(conf);
@@ -234,7 +235,6 @@ public class SVTSolver extends AbstractJob {
     
     long timingStart = 0, timingEnd = 0;
     
-  	//run algorithm to complete the matrix
     DistributedRowMatrix matrix = new DistributedRowMatrix(inputPath, workingPath, numRows, numCols);
     matrix.setConf(conf);
     
@@ -312,10 +312,6 @@ public class SVTSolver extends AbstractJob {
     	writeTimingResults(k, "truncateAndThreshold", timingEnd - timingStart);
 
     	//calculate X = U'*S*V -- with truncated singular values
-    	//currently assuming I can just hard-code 1 partition coming back....that may change with larger data sets?  Dunno
-    	//TODO: maybe I dynamically discover the "natural" partition size, and use that?
-    	//exactly what SSVD will return in those cases...
-    	//not sure why it matters...but I was getting weird results until I setConf(conf) on each matrix.
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix DiagS = svd.getDiagS(conf);
       DiagS.setConf(conf);    	
@@ -345,8 +341,8 @@ public class SVTSolver extends AbstractJob {
     	X.setConf(conf);
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "X=Utrans.times(SV)", timingEnd - timingStart);
-    	  	
 
+    	
     	//checking stopping conditions
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix XminusM = X.plus(new Path(iterationWorkingPath, "XminusM"), matrix, -1);
@@ -360,7 +356,6 @@ public class SVTSolver extends AbstractJob {
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "XminusM.projection(Omega)", timingEnd - timingStart);
     	
- 
     	timingStart = System.currentTimeMillis();
     	double relRes = XminusMonOmega.frobeniusNorm() / matrixFrobNorm; 
     	timingEnd = System.currentTimeMillis();
@@ -521,8 +516,7 @@ public class SVTSolver extends AbstractJob {
 			
 		}
 
-  	//TODO: this is a hack...1) Can't call it twice (will blow up), 2) do I really need to do this, or can I just compute X smarter?
-  	//But still....lets just get it working please
+  	//TODO: this is a hack...But still....lets just get it working and maybe I'll change it up when/if I switch to Lanczos
   	public DistributedRowMatrix getDiagS(Configuration conf) throws IOException {
   		
   		//create a DistributedRowMatrix version of Diag(S)
