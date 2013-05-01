@@ -537,7 +537,7 @@ public class SVTSolver extends AbstractJob {
   	
   	public void truncateAndThreshold(Configuration conf, int r, double threshold) throws IOException {
   		if(r>=U.numCols())
-  			r = U.numCols();
+  			r = U.numCols() - 1;
   		
     	U = U.viewColumns(new Path(U.getRowPath().getParent(),U_THRESHOLDED_REL_PATH), 0, r); //in terms of indexes -- start index of 0, end index of r
     	U.setConf(conf);
