@@ -218,8 +218,10 @@ public class SVTSolver extends AbstractJob {
 
     FileSystem fs = outputPath.getFileSystem(conf);
 
-    //TEMP:
-    conf.set("mapred.child.java.opts","-Xmx1024m");
+    //TEMP: try setting step size < 2...see if I can keep it from diverging
+    //not sure why matlab doesn't diverge but I do....but oh well, lets try this
+    //it might have to do with the results of my SVD or some such
+    stepSize = 1.9;
     
     //TODO: super hacky...fix this
     OutputStream outStream;
