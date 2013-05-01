@@ -43,6 +43,8 @@ import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.Functions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
@@ -51,6 +53,8 @@ import java.net.URI;
 import java.util.Iterator;
 
 public final class TimesSquaredJob {
+
+  private static final Logger log = LoggerFactory.getLogger(TimesSquaredJob.class);
 
   public static final String INPUT_VECTOR = "DistributedMatrix.times.inputVector";
   public static final String IS_SPARSE_OUTPUT = "DistributedMatrix.times.outputVector.sparse";
@@ -249,6 +253,7 @@ public final class TimesSquaredJob {
     }
 
     protected double scale(VectorWritable v) {
+    	log.info("v.size()=" + v.get().size() + ", inputVector.size()=" + inputVector.size());
       return v.get().dot(inputVector);
     }
 
