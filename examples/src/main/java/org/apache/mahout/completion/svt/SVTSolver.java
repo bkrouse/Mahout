@@ -216,8 +216,8 @@ public class SVTSolver extends AbstractJob {
   	//run algorithm to complete the matrix
   	log.info("SVTSolver: start");
   	
-  	OutputStream outStream = new FileOutputStream("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data2/output.log");
-//  	OutputStream outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
+//  	OutputStream outStream = new FileOutputStream("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data2/output.log");
+  	OutputStream outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
   	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
   	
     FileSystem fs = outputPath.getFileSystem(conf);
