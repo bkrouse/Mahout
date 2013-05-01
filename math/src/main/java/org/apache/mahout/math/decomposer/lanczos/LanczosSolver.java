@@ -98,8 +98,8 @@ public class LanczosSolver {
                     int desiredRank,
                     boolean isSymmetric) {
     VectorIterable corpus = state.getCorpus();
-    log.info("Finding {} singular vectors of matrix with {} rows, via Lanczos",
-        desiredRank, corpus.numRows());
+    log.info("Finding {} singular vectors of matrix with {} rows and {} cols, via Lanczos",
+        desiredRank, corpus.numRows(), corpus.numCols());
     int i = state.getIterationNumber();
     Vector currentVector = state.getBasisVector(i - 1);
     Vector previousVector = state.getBasisVector(i - 2);

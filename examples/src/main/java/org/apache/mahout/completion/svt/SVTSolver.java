@@ -215,13 +215,17 @@ public class SVTSolver extends AbstractJob {
 
   	//run algorithm to complete the matrix
   	log.info("SVTSolver: start");
-  	
-//  	OutputStream outStream = new FileOutputStream("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data2/output.log");
-  	OutputStream outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
+
+    FileSystem fs = outputPath.getFileSystem(conf);
+    
+    //TODO: super hacky...fix this
+    OutputStream outStream;
+    if(outputPath.toString().startsWith("/Users"))
+    	outStream = new FileOutputStream("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data2/output.log");
+    else
+    	outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
   	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
   	
-    FileSystem fs = outputPath.getFileSystem(conf);
-        
 
 //		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
 //	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
