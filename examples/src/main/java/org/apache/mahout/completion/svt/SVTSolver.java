@@ -216,6 +216,7 @@ public class SVTSolver extends AbstractJob {
   	//run algorithm to complete the matrix
   	log.info("SVTSolver: start");
   	
+//  	OutputStream outStream = new FileOutputStream("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data2/output.log");
   	OutputStream outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
   	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
   	
@@ -256,6 +257,7 @@ public class SVTSolver extends AbstractJob {
   	timingStart = System.currentTimeMillis();
     double norm2 = norm2(matrix);
   	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
+  	log.info("k0=" + k0);
   	DistributedRowMatrix Y = matrix.times(new Path(workingPath, "Y0"), k0*stepSize);  
   	timingEnd = System.currentTimeMillis();
   	writeTimingResults(0, "kickingStep", timingEnd - timingStart);
