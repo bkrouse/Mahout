@@ -253,7 +253,6 @@ public final class TimesSquaredJob {
     }
 
     protected double scale(VectorWritable v) {
-    	log.info("v.size()=" + v.get().size() + ", inputVector.size()=" + inputVector.size());
       return v.get().dot(inputVector);
     }
 

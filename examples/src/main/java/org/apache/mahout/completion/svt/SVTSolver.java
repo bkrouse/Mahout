@@ -217,15 +217,18 @@ public class SVTSolver extends AbstractJob {
   	log.info("SVTSolver: start");
 
     FileSystem fs = outputPath.getFileSystem(conf);
+
+    //TEMP:
+    conf.set("mapred.child.java.opts","-Xmx1024m");
     
     //TODO: super hacky...fix this
     OutputStream outStream;
-    if(outputPath.toString().startsWith("/Users"))
+    if(fs.exists(new Path("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data2")))
     	outStream = new FileOutputStream("/Users/bkrouse/Documents/eclipseworkspaces/Apache/data2/output.log");
     else
     	outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
   	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
-  	
+  	    
 
 //		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
 //	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
@@ -533,6 +536,9 @@ public class SVTSolver extends AbstractJob {
   	{}
   	
   	public void truncateAndThreshold(Configuration conf, int r, double threshold) throws IOException {
+  		if(r>=U.numCols())
+  			r = U.numCols();
+  		
     	U = U.viewColumns(new Path(U.getRowPath().getParent(),U_THRESHOLDED_REL_PATH), 0, r); //in terms of indexes -- start index of 0, end index of r
     	U.setConf(conf);
     	V = V.viewColumns(new Path(U.getRowPath().getParent(),V_THRESHOLDED_REL_PATH), 0, r);
