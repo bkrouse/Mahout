@@ -76,6 +76,10 @@ public class MatrixMultiplicationJob extends AbstractJob {
     conf.setMapOutputValueClass(VectorWritable.class);
     conf.setOutputKeyClass(IntWritable.class);
     conf.setOutputValueClass(VectorWritable.class);
+    
+    //TEMP: 
+    conf.setNumReduceTasks(20);
+
     return conf;
   }
 

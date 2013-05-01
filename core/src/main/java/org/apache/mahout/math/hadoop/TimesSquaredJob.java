@@ -178,6 +178,10 @@ public final class TimesSquaredJob {
     conf.setOutputFormat(SequenceFileOutputFormat.class);
     conf.setOutputKeyClass(NullWritable.class);
     conf.setOutputValueClass(VectorWritable.class);
+    
+    //TEMP: 
+    conf.setNumReduceTasks(20);
+
     return conf;
   }
 
