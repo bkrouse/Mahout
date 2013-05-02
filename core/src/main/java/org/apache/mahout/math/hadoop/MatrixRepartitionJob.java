@@ -18,6 +18,8 @@
 package org.apache.mahout.math.hadoop;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -65,7 +67,28 @@ public class MatrixRepartitionJob extends AbstractJob {
 
   @Override
   public int run(String[] strings) throws Exception {
-    throw new Exception("Not implemented");
+    addOption("inputPath", "i", "Path to the first input matrix", true);
+    addOption("numPartitions", "n", "Number of partitions of the output matrix", true);
+
+    Map<String, List<String>> argMap = parseArguments(strings);
+    if (argMap == null) {
+      return -1;
+    }
+
+    int numPartitions = Integer.parseInt(getOption("numPartitions"));
+    
+    DistributedRowMatrix m = new DistributedRowMatrix(new Path(getOption("inputPath")),
+                                                      new Path(getOption("tempDir")),
+                                                      0,
+                                                      0);
+
+    m.setConf(new Configuration(getConf()));
+
+    
+    
+    m.repartitionSequenceFile(numPartitions);
+    
+    return 0;
   }
 
   public static class MatrixRepartitionMapper extends MapReduceBase
