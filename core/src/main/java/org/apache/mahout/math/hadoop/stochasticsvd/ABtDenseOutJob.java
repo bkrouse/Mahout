@@ -56,6 +56,8 @@ import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.Functions;
 import org.apache.mahout.math.hadoop.stochasticsvd.qr.QRFirstStep;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Computes ABt products, then first step of QR which is pushed down to the
@@ -63,6 +65,8 @@ import org.apache.mahout.math.hadoop.stochasticsvd.qr.QRFirstStep;
  */
 @SuppressWarnings("deprecation")
 public final class ABtDenseOutJob {
+
+  private static final Logger log = LoggerFactory.getLogger(ABtDenseOutJob.class);
 
   public static final String PROP_BT_PATH = "ssvd.Bt.path";
   public static final String PROP_BT_BROADCAST = "ssvd.Bt.broadcast";
@@ -188,7 +192,8 @@ public final class ABtDenseOutJob {
         for (int pass = 0; pass < numPasses; pass++) {
 
           if (distributedBt) {
-
+          	log.info("btLocalPath=" + btLocalPath);
+          	
             btInput =
               new SequenceFileDirIterator<IntWritable, VectorWritable>(btLocalPath,
                                                                        true,
@@ -196,6 +201,8 @@ public final class ABtDenseOutJob {
 
           } else {
 
+          	log.info("btPath=" + btPath);
+          	
             btInput =
               new SequenceFileDirIterator<IntWritable, VectorWritable>(btPath,
                                                                        PathType.GLOB,
