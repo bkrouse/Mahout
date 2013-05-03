@@ -37,6 +37,8 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.common.commandline.DefaultOptionCreator;
+import org.apache.mahout.common.iterator.sequencefile.PathType;
+import org.apache.mahout.common.iterator.sequencefile.SequenceFileDirIterator;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.VectorWritable;
@@ -231,6 +233,19 @@ public class SVTSolver extends AbstractJob {
     	outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
   	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
   	    
+  	
+  	SequenceFileDirIterator<IntWritable, VectorWritable> btInput =
+      new SequenceFileDirIterator<IntWritable, VectorWritable>(new Path("svt/netflix/tmp/svt-working/1/Bt-job/part-*"),
+                                                               PathType.GLOB,
+                                                               null,
+                                                               null,
+                                                               true,
+                                                               conf);
+
+		log.info("btInput.hasNext()" + btInput.hasNext());
+  	
+    if(1==1)
+	  	return;
 
 //		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
 //	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
