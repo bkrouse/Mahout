@@ -239,8 +239,13 @@ public class SVTSolver extends AbstractJob {
 //	  XminusMtemp.setConf(conf);
 //	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
 //
-//    if(1==1)
-//	  	return;
+	  DistributedRowMatrix Ytmp = new DistributedRowMatrix(new Path(workingPath, "Y0"), workingPath, numRows, numCols);
+	  Ytmp.setConf(conf);
+  	SVD svdtmp = computeSVD(conf, new Path(workingPath, Integer.toString(1)), Ytmp, 14);
+
+  	
+    if(1==1)
+	  	return;
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
