@@ -32,6 +32,7 @@ import org.apache.hadoop.mapred.join.CompositeInputFormat;
 import org.apache.hadoop.mapred.join.TupleWritable;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
+import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
@@ -140,7 +141,7 @@ public class MatrixProjectionJob extends AbstractJob {
         if(omegaFrag.getQuick(e.index())!=0)
         	outVector.setQuick(e.index(), e.get());
       }
-      out.collect(index, new VectorWritable(outVector));
+      out.collect(index, new VectorWritable(new SequentialAccessSparseVector(outVector)));
 
 //      log.info("outVector: " + outVector.toString());
 //      log.info("end: " + index.get());

@@ -152,7 +152,7 @@ public class MatrixMultiplicationJob extends AbstractJob {
       while (it.hasNext()) {
         Vector.Element e = it.next();
         row.set(e.index());
-        outVector.set(outFrag.times(e.get()));
+        outVector.set(new SequentialAccessSparseVector(outFrag.times(e.get())));
         out.collect(row, outVector);
       }
       log.info("end map: " + index.get());

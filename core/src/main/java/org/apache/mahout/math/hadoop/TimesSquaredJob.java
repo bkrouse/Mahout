@@ -40,6 +40,7 @@ import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileValueIterator;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.RandomAccessSparseVector;
+import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.Functions;
@@ -303,7 +304,7 @@ public final class TimesSquaredJob {
           outputVector.assign(v.get(), Functions.PLUS);
         }
       }
-      out.collect(NullWritable.get(), new VectorWritable(outputVector));
+      out.collect(NullWritable.get(), new VectorWritable(new SequentialAccessSparseVector(outputVector)));
     }
   }
 

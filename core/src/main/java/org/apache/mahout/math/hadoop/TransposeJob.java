@@ -136,7 +136,7 @@ public class TransposeJob extends AbstractJob {
         RandomAccessSparseVector tmp = new RandomAccessSparseVector(newNumCols, 1);
         tmp.setQuick(row, e.get());
         r.set(e.index());
-        out.collect(r, new VectorWritable(tmp));
+        out.collect(r, new VectorWritable(new SequentialAccessSparseVector(tmp)));
       }
     }
   }

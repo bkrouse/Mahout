@@ -38,6 +38,7 @@ import org.apache.hadoop.mapred.lib.IdentityMapper;
 import org.apache.hadoop.mapred.lib.IdentityReducer;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
+import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.VectorWritable;
 
 public class MatrixRepartitionJob extends AbstractJob {
@@ -100,7 +101,7 @@ public class MatrixRepartitionJob extends AbstractJob {
 		                OutputCollector<IntWritable,VectorWritable> out,
 		                Reporter reporter) throws IOException {
 		
-		  out.collect(index, v);
+		  out.collect(index, new VectorWritable(new SequentialAccessSparseVector(v.get())));
 	}
 }
 }

@@ -113,8 +113,8 @@ public class MatrixScalarMultiplicationJob extends AbstractJob {
                     OutputCollector<IntWritable,VectorWritable> out,
                     Reporter reporter) throws IOException {
 
-      VectorWritable scaledVector = new VectorWritable(v.get().times(scalar));
-      out.collect(index, scaledVector);
+      Vector scaledVector = v.get().times(scalar);
+      out.collect(index, new VectorWritable(new SequentialAccessSparseVector(scaledVector)));
     }
   }
 
