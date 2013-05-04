@@ -55,6 +55,8 @@ import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.Functions;
 import org.apache.mahout.math.function.PlusMult;
 import org.apache.mahout.math.hadoop.stochasticsvd.qr.QRLastStep;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Bt job. For details, see working notes in MAHOUT-376.
@@ -80,6 +82,9 @@ import org.apache.mahout.math.hadoop.stochasticsvd.qr.QRLastStep;
 @SuppressWarnings("deprecation")
 public final class BtJob {
 
+  private static final Logger log = LoggerFactory.getLogger(BtJob.class);
+
+	
   public static final String OUTPUT_Q = "Q";
   public static final String OUTPUT_BT = "part";
   public static final String OUTPUT_BBT = "bbt";
@@ -458,8 +463,12 @@ public final class BtJob {
           if (sbAccum == null) {
             sbAccum = new DenseVector(btRow.size());
           }
+
+        	log.info("assign(btRow,pmult), btRow.size()=" + btRow.size() + ", pmult=" + pmult);
           sbAccum.assign(btRow, pmult);
         }
+        else
+        	log.info("xi == null");
 
       }
     }
@@ -480,8 +489,12 @@ public final class BtJob {
                             new VectorWritable(new DenseVector(mBBt.getData())));
         }
 
+        
+        
         // MAHOUT-817
         if (sbAccum != null) {
+          log.info("collecting sbAccum: " + sbAccum.size());
+
           @SuppressWarnings("unchecked")
           OutputCollector<IntWritable, VectorWritable> collector =
             outputs.getCollector(OUTPUT_SB, null);
@@ -489,6 +502,10 @@ public final class BtJob {
           collector.collect(new IntWritable(), new VectorWritable(sbAccum));
 
         }
+        else
+          log.info("no sbAccum");
+
+        
       } finally {
         IOUtils.close(closeables);
       }
