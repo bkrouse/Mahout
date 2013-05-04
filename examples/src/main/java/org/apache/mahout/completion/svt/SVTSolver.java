@@ -223,7 +223,7 @@ public class SVTSolver extends AbstractJob {
     //TEMP: try setting step size < 2...see if I can keep it from diverging
     //not sure why matlab doesn't diverge but I do....but oh well, lets try this
     //it might have to do with the results of my SVD or some such
-    stepSize = 1.9;
+//    stepSize = 1.9;
     
     //TODO: super hacky...fix this
     OutputStream outStream;
@@ -241,13 +241,13 @@ public class SVTSolver extends AbstractJob {
 //	  XminusMtemp.setConf(conf);
 //	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
 //
-	  DistributedRowMatrix Ytmp = new DistributedRowMatrix(new Path(workingPath, "Y0"), workingPath, numRows, numCols);
-	  Ytmp.setConf(conf);
-  	SVD svdtmp = computeSVD(conf, new Path(workingPath, Integer.toString(1)), Ytmp, 14);
-
-  	
-    if(1==1)
-	  	return;
+//	  DistributedRowMatrix Ytmp = new DistributedRowMatrix(new Path(workingPath, "Y0"), workingPath, numRows, numCols);
+//	  Ytmp.setConf(conf);
+//  	SVD svdtmp = computeSVD(conf, new Path(workingPath, Integer.toString(1)), Ytmp, 14);
+//
+//  	
+//    if(1==1)
+//	  	return;
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
@@ -271,12 +271,17 @@ public class SVTSolver extends AbstractJob {
     
     //kicking step
   	timingStart = System.currentTimeMillis();
-    double norm2 = norm2(matrix);
-  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
-  	log.info("k0=" + k0);
+//    double norm2 = norm2(matrix);
+//  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
+  	int k0 = 91;
+  	log.info("k0=" + k0 + ", stepSize=" + stepSize);
+  	timingEnd = System.currentTimeMillis();
+  	writeTimingResults(0, "kickingStep - norm2: k0=" + k0 + ", stepSize=" + stepSize, timingEnd - timingStart);
+
+  	timingStart = System.currentTimeMillis();
   	DistributedRowMatrix Y = matrix.times(new Path(workingPath, "Y0"), k0*stepSize);  
   	timingEnd = System.currentTimeMillis();
-  	writeTimingResults(0, "kickingStep", timingEnd - timingStart);
+  	writeTimingResults(0, "kickingStep - matrix.times()", timingEnd - timingStart);
 
   	//calculate matrixFrobNorm -- will use in each iteration below
   	timingStart = System.currentTimeMillis();

@@ -155,30 +155,30 @@ public final class BtJob {
       }
 
       if (!aRow.isDense()) {
-      	log.info("aRow.isDense()=false, aRow.size()=" + aRow.size() + " , aRow.nonZeroElements()" + aRow.getNumNonZeroElements());
+//      	log.info("aRow.isDense()=false, aRow.size()=" + aRow.size() + " , aRow.nonZeroElements()" + aRow.getNumNonZeroElements());
         for (Iterator<Vector.Element> iter = aRow.iterateNonZero(); iter.hasNext();) {
-        	log.info("aRow.iterateNonZero()...");
+//        	log.info("aRow.iterateNonZero()...");
         	Vector.Element el = iter.next();
           double mul = el.get();
           for (int j = 0; j < kp; j++) {
             btRow.setQuick(j, mul * qRow.getQuick(j));
           }
 
-          log.info("btCollector(1): " + btRow.toString());
+//          log.info("btCollector(1): " + btRow.toString());
 
           btCollector.collect((long) el.index(), btRow);
         }
       } else {
-      	log.info("aRow.isDense()=true");
+//      	log.info("aRow.isDense()=true");
         int n = aRow.size();
-      	log.info("aRow.size()="+ aRow.size());
+//      	log.info("aRow.size()="+ aRow.size());
         for (int i = 0; i < n; i++) {
           double mul = aRow.getQuick(i);
           for (int j = 0; j < kp; j++) {
             btRow.setQuick(j, mul * qRow.getQuick(j));
           }
 
-          log.info("btCollector(2): " + btRow.toString());
+//          log.info("btCollector(2): " + btRow.toString());
 
           btCollector.collect((long) i, btRow);
         }
