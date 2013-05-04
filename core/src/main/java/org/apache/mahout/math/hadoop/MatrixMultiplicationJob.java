@@ -39,6 +39,8 @@ import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.function.Functions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -46,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 
 public class MatrixMultiplicationJob extends AbstractJob {
+  private static final Logger log = LoggerFactory.getLogger(MatrixMultiplicationJob.class);
 
   private static final String OUT_CARD = "output.vector.cardinality";
 
@@ -142,14 +145,18 @@ public class MatrixMultiplicationJob extends AbstractJob {
       Vector outFrag = firstIsOutFrag ? ((VectorWritable)v.get(0)).get() : ((VectorWritable)v.get(1)).get();
       Vector multiplier = firstIsOutFrag ? ((VectorWritable)v.get(1)).get() : ((VectorWritable)v.get(0)).get();
 
+      log.info("start map: " + index.get() + ", outFrag.size()=" + outFrag.size() + ", multiplier.size()=" + multiplier.size());
       VectorWritable outVector = new VectorWritable();
       Iterator<Vector.Element> it = multiplier.iterateNonZero();
+      log.info("start map: " + index.get());
       while (it.hasNext()) {
         Vector.Element e = it.next();
         row.set(e.index());
         outVector.set(outFrag.times(e.get()));
         out.collect(row, outVector);
       }
+      log.info("end map: " + index.get());
+
     }
   }
 
