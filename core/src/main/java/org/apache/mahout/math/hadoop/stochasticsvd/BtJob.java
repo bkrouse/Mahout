@@ -155,7 +155,7 @@ public final class BtJob {
       }
 
       if (!aRow.isDense()) {
-      	log.info("!aRow.isDense()=false");
+      	log.info("aRow.isDense()=false, aRow.size()=" + aRow.size() + " , aRow.nonZeroElements()" + aRow.getNumNonZeroElements());
         for (Iterator<Vector.Element> iter = aRow.iterateNonZero(); iter.hasNext();) {
         	log.info("aRow.iterateNonZero()...");
         	Vector.Element el = iter.next();
