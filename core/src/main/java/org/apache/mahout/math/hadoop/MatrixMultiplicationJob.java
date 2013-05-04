@@ -149,7 +149,12 @@ public class MatrixMultiplicationJob extends AbstractJob {
       VectorWritable outVector = new VectorWritable();
       Iterator<Vector.Element> it = multiplier.iterateNonZero();
       log.info("start map: " + index.get());
+      int rowsProcessed = 0;
       while (it.hasNext()) {
+        rowsProcessed++;
+        if (rowsProcessed % 1000 == 0) {
+          log.info("{} rows processed...", rowsProcessed);
+        }            	
         Vector.Element e = it.next();
         row.set(e.index());
         outVector.set(new SequentialAccessSparseVector(outFrag.times(e.get())));
