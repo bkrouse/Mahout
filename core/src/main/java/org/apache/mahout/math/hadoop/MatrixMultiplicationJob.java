@@ -145,11 +145,11 @@ public class MatrixMultiplicationJob extends AbstractJob {
       Vector outFrag = firstIsOutFrag ? ((VectorWritable)v.get(0)).get() : ((VectorWritable)v.get(1)).get();
       Vector multiplier = firstIsOutFrag ? ((VectorWritable)v.get(1)).get() : ((VectorWritable)v.get(0)).get();
 
-      log.info("start map: " + index.get() + ", outFrag.size()=" + outFrag.size() + ", multiplier.size()=" + multiplier.size());
+      log.info("start map: " + index.get() + ", outFrag.size()=" + outFrag.size() + ", multiplier.getNumNonZeroElements()=" + multiplier.getNumNonZeroElements());
       VectorWritable outVector = new VectorWritable();
       Iterator<Vector.Element> it = multiplier.iterateNonZero();
-      log.info("start map: " + index.get());
-      int rowsProcessed = 0;
+      log.info("start loop: " + index.get());
+      long rowsProcessed = 0;
       while (it.hasNext()) {
         rowsProcessed++;
         if (rowsProcessed % 1000 == 0) {
@@ -157,7 +157,7 @@ public class MatrixMultiplicationJob extends AbstractJob {
         }            	
         Vector.Element e = it.next();
         row.set(e.index());
-        outVector.set(new SequentialAccessSparseVector(outFrag.times(e.get())));
+        outVector.set(outFrag.times(e.get()));
         out.collect(row, outVector);
       }
       log.info("end map: " + index.get());
