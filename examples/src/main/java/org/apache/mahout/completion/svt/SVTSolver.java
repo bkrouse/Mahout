@@ -234,33 +234,33 @@ public class SVTSolver extends AbstractJob {
   	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
   	    
   	
-  	SequenceFileDirIterator<IntWritable, VectorWritable> btInput =
-      new SequenceFileDirIterator<IntWritable, VectorWritable>(new Path("svt/netflix/tmp/svt-working/1/Bt-job/part-*"),
-                                                               PathType.GLOB,
-                                                               null,
-                                                               null,
-                                                               true,
-                                                               conf);
-
-		log.info("btInput.hasNext()" + btInput.hasNext());
-  	
-    if(1==1)
-	  	return;
-
-//		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
-//	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
-//	  matrixtmp.setConf(conf);
-//	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/XminusM"), workingPath, numRows, numCols);
-//	  XminusMtemp.setConf(conf);
-//	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
+//  	SequenceFileDirIterator<IntWritable, VectorWritable> btInput =
+//      new SequenceFileDirIterator<IntWritable, VectorWritable>(new Path("svt/netflix/tmp/svt-working/1/Bt-job/part-*"),
+//                                                               PathType.GLOB,
+//                                                               null,
+//                                                               null,
+//                                                               true,
+//                                                               conf);
 //
-	  DistributedRowMatrix Ytmp = new DistributedRowMatrix(new Path(workingPath, "Y0"), workingPath, numRows, numCols);
-	  Ytmp.setConf(conf);
-  	SVD svdtmp = computeSVD(conf, new Path(workingPath, Integer.toString(1)), Ytmp, 14);
-
-  	
-    if(1==1)
-	  	return;
+//		log.info("btInput.hasNext()" + btInput.hasNext());
+//  	
+//    if(1==1)
+//	  	return;
+//
+////		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
+////	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
+////	  matrixtmp.setConf(conf);
+////	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/XminusM"), workingPath, numRows, numCols);
+////	  XminusMtemp.setConf(conf);
+////	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
+////
+//	  DistributedRowMatrix Ytmp = new DistributedRowMatrix(new Path(workingPath, "Y0"), workingPath, numRows, numCols);
+//	  Ytmp.setConf(conf);
+//  	SVD svdtmp = computeSVD(conf, new Path(workingPath, Integer.toString(1)), Ytmp, 14);
+//
+//  	
+//    if(1==1)
+//	  	return;
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
