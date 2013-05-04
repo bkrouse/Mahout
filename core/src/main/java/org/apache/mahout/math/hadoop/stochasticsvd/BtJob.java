@@ -155,21 +155,31 @@ public final class BtJob {
       }
 
       if (!aRow.isDense()) {
+      	log.info("!aRow.isDense()=false");
         for (Iterator<Vector.Element> iter = aRow.iterateNonZero(); iter.hasNext();) {
-          Vector.Element el = iter.next();
+        	log.info("aRow.iterateNonZero()...");
+        	Vector.Element el = iter.next();
           double mul = el.get();
           for (int j = 0; j < kp; j++) {
             btRow.setQuick(j, mul * qRow.getQuick(j));
           }
+
+          log.info("btCollector(1): " + btRow.toString());
+
           btCollector.collect((long) el.index(), btRow);
         }
       } else {
+      	log.info("aRow.isDense()=true");
         int n = aRow.size();
+      	log.info("aRow.size()="+ aRow.size());
         for (int i = 0; i < n; i++) {
           double mul = aRow.getQuick(i);
           for (int j = 0; j < kp; j++) {
             btRow.setQuick(j, mul * qRow.getQuick(j));
           }
+
+          log.info("btCollector(2): " + btRow.toString());
+
           btCollector.collect((long) i, btRow);
         }
       }
@@ -464,11 +474,11 @@ public final class BtJob {
             sbAccum = new DenseVector(btRow.size());
           }
 
-        	log.info("assign(btRow,pmult), btRow.size()=" + btRow.size() + ", pmult=" + pmult);
+//        	log.info("assign(btRow,pmult), btRow.size()=" + btRow.size() + ", pmult=" + pmult);
           sbAccum.assign(btRow, pmult);
         }
-        else
-        	log.info("xi == null");
+//        else
+//        	log.info("xi == null");
 
       }
     }
@@ -493,7 +503,7 @@ public final class BtJob {
         
         // MAHOUT-817
         if (sbAccum != null) {
-          log.info("collecting sbAccum: " + sbAccum.size());
+//          log.info("collecting sbAccum: " + sbAccum.size());
 
           @SuppressWarnings("unchecked")
           OutputCollector<IntWritable, VectorWritable> collector =
@@ -502,8 +512,8 @@ public final class BtJob {
           collector.collect(new IntWritable(), new VectorWritable(sbAccum));
 
         }
-        else
-          log.info("no sbAccum");
+//        else
+//          log.info("no sbAccum");
 
         
       } finally {
