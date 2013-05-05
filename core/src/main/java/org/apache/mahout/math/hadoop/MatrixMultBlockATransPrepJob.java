@@ -137,7 +137,7 @@ public class MatrixMultBlockATransPrepJob extends AbstractJob {
 
     	//currently only support this if blockSize goes evenly into v.size()
     	if (blockSize * numBlocks != v.size())
-    		throw new IOException("numBlocks must go evenly into the columns of ATrans");
+    		throw new IOException("numBlocks (" + numBlocks + ") must go evenly into the columns of ATrans (" + v.size() + "), blockSize=" + blockSize);
 
     	int startIdx = 0;
     	Vector outVector; 
