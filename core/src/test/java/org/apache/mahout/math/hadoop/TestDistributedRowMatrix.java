@@ -259,7 +259,8 @@ public final class TestDistributedRowMatrix extends MahoutTestCase {
                                                                                         aPath,
                                                                                         bPath,
                                                                                         outPath,
-                                                                                        10);
+                                                                                        10,
+                                                                                        MatrixMultiplicationJob.NO_BLOCKS);
 
     assertNull(mmJobConf.get(TEST_PROPERTY_KEY));
     assertEquals(TEST_PROPERTY_VALUE, mmCustomJobConf.get(TEST_PROPERTY_KEY));

@@ -185,16 +185,24 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
   }
 
 
+  public DistributedRowMatrix times(DistributedRowMatrix other) throws IOException {
+  	return times(other,MatrixMultiplicationJob.NO_BLOCKS);
+  }
+  
   /**
    * This implements matrix this.transpose().times(other)
 	 * @param outPath the path to the rowPath of the resultant product matrix
    * @param other   a DistributedRowMatrix
    * @return    a DistributedRowMatrix containing the product
    */
-  public DistributedRowMatrix times(DistributedRowMatrix other) throws IOException {
+  public DistributedRowMatrix times(DistributedRowMatrix other, int numBlocks) throws IOException {
     Path outPath = new Path(outputTmpBasePath.getParent(), "productWith-" + (System.nanoTime() & 0xFFFF));
 
-    return times(other, outPath);
+    return times(other, outPath, numBlocks);
+  }
+
+  public DistributedRowMatrix times(DistributedRowMatrix other, Path outPath) throws IOException {
+  	return times(other, outPath, MatrixMultiplicationJob.NO_BLOCKS);
   }
   
   /**
@@ -202,7 +210,7 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
    * @param other   a DistributedRowMatrix
    * @return    a DistributedRowMatrix containing the product
    */
-  public DistributedRowMatrix times(DistributedRowMatrix other, Path outPath) throws IOException {
+  public DistributedRowMatrix times(DistributedRowMatrix other, Path outPath, int numBlocks) throws IOException {
     if (numRows != other.numRows()) {
       throw new CardinalityException(numRows, other.numRows());
     }
@@ -215,7 +223,8 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             rowPath,
                                                             other.rowPath,
                                                             outPath,
-                                                            other.numCols);
+                                                            other.numCols,
+                                                            numBlocks);
     RunningJob job = JobClient.runJob(new JobConf(conf));
     job.waitForCompletion();
     DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());

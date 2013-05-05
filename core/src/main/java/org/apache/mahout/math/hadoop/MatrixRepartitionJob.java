@@ -55,6 +55,7 @@ public class MatrixRepartitionJob extends AbstractJob {
     FileInputFormat.setInputPaths(conf, path);
     FileOutputFormat.setOutputPath(conf, outPath);
     conf.setMapperClass(IdentityMapper.class);
+    conf.setCombinerClass(IdentityReducer.class);
     conf.setReducerClass(IdentityReducer.class);
     conf.setOutputKeyClass(IntWritable.class);
     conf.setOutputValueClass(VectorWritable.class);

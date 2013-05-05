@@ -51,25 +51,30 @@ public class MatrixMultiplicationJob extends AbstractJob {
   private static final Logger log = LoggerFactory.getLogger(MatrixMultiplicationJob.class);
 
   private static final String OUT_CARD = "output.vector.cardinality";
+  private static final String NUM_BLOCKS = "MatrixMultiplication.sizeBlocks";
+  
+  public static final int NO_BLOCKS = -1;
 
   public static Configuration createMatrixMultiplyJobConf(Path aPath, 
                                                           Path bPath, 
                                                           Path outPath, 
                                                           int outCardinality) {
-    return createMatrixMultiplyJobConf(new Configuration(), aPath, bPath, outPath, outCardinality);
+    return createMatrixMultiplyJobConf(new Configuration(), aPath, bPath, outPath, outCardinality, MatrixMultiplicationJob.NO_BLOCKS);
   }
   
   public static Configuration createMatrixMultiplyJobConf(Configuration initialConf, 
                                                           Path aPath, 
                                                           Path bPath, 
                                                           Path outPath, 
-                                                          int outCardinality) {
+                                                          int outCardinality,
+                                                          int numBlocks) {
     JobConf conf = new JobConf(initialConf, MatrixMultiplicationJob.class);
-    conf.setJobName("MatrixMultiplicationJob: " + aPath + " + " + bPath + " (outCardinality=" + outCardinality + ") -> " + outPath);
+    conf.setJobName("MatrixMultiplicationJob: " + aPath + " + " + bPath + " (outCardinality=" + outCardinality + ", numBlocks=" + numBlocks + ") -> " + outPath);
     conf.setInputFormat(CompositeInputFormat.class);
     conf.set("mapred.join.expr", CompositeInputFormat.compose(
           "inner", SequenceFileInputFormat.class, aPath, bPath));
     conf.setInt(OUT_CARD, outCardinality);
+    conf.setInt(NUM_BLOCKS, numBlocks);
     conf.setOutputFormat(SequenceFileOutputFormat.class);
     FileOutputFormat.setOutputPath(conf, outPath);
     conf.setMapperClass(MatrixMultiplyMapper.class);
@@ -98,12 +103,18 @@ public class MatrixMultiplicationJob extends AbstractJob {
     addOption("inputPathB", "ib", "Path to the second input matrix", true);
 
     addOption("outputPath", "op", "Path to the output matrix", false);
+    addOption("numBlocks", "n", "Size of blocks, if the matrices were prepared in blocks", false);
 
     Map<String, List<String>> argMap = parseArguments(strings);
     if (argMap == null) {
       return -1;
     }
 
+    int numBlocks = NO_BLOCKS;
+    if (hasOption("numBlocks")) 
+    	numBlocks = Integer.parseInt(getOption("numBlocks"));
+
+    
     DistributedRowMatrix a = new DistributedRowMatrix(new Path(getOption("inputPathA")),
                                                       new Path(getOption("tempDir")),
                                                       Integer.parseInt(getOption("numRowsA")),
@@ -117,9 +128,9 @@ public class MatrixMultiplicationJob extends AbstractJob {
     b.setConf(new Configuration(getConf()));
 
     if (hasOption("outputPath")) {
-      a.times(b, new Path(getOption("outputPath")));
+      a.times(b, new Path(getOption("outputPath")), numBlocks);
     } else {
-      a.times(b);
+      a.times(b, numBlocks);
     }
 
     return 0;
@@ -129,11 +140,13 @@ public class MatrixMultiplicationJob extends AbstractJob {
       implements Mapper<IntWritable,TupleWritable,IntWritable,VectorWritable> {
 
     private int outCardinality;
+    private int numBlocks;
     private final IntWritable row = new IntWritable();
 
     @Override
     public void configure(JobConf conf) {
       outCardinality = conf.getInt(OUT_CARD, Integer.MAX_VALUE);
+      numBlocks = conf.getInt(NUM_BLOCKS, NO_BLOCKS);
     }
 
     @Override
@@ -145,7 +158,7 @@ public class MatrixMultiplicationJob extends AbstractJob {
       Vector outFrag = firstIsOutFrag ? ((VectorWritable)v.get(0)).get() : ((VectorWritable)v.get(1)).get();
       Vector multiplier = firstIsOutFrag ? ((VectorWritable)v.get(1)).get() : ((VectorWritable)v.get(0)).get();
 
-      log.info("start map: " + index.get() + ", outFrag.size()=" + outFrag.size() + ", multiplier.getNumNonZeroElements()=" + multiplier.getNumNonZeroElements());
+      log.info("start map: " + index.get() + ", outFrag.size()=" + outFrag.size() + ", multiplier.getNumNonZeroElements()=" + multiplier.getNumNonZeroElements() + ", numBlocks=" + numBlocks);
       VectorWritable outVector = new VectorWritable();
       Iterator<Vector.Element> it = multiplier.iterateNonZero();
       log.info("start loop: " + index.get());
@@ -156,7 +169,12 @@ public class MatrixMultiplicationJob extends AbstractJob {
           log.info("{} rows processed...", rowsProcessed);
         }            	
         Vector.Element e = it.next();
-        row.set(e.index());
+        if(numBlocks==NO_BLOCKS)
+        	row.set(e.index());
+        else {
+        	int offset = (index.get() % numBlocks) * multiplier.size();  
+        	row.set( offset + e.index() );
+        }
         outVector.set(outFrag.times(e.get()));
         out.collect(row, outVector);
       }
