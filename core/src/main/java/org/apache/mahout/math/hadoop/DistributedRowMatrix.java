@@ -625,7 +625,32 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
     return out;	
 	}
 	
+	public DistributedRowMatrix prepABlocks(Path outputPath, int numBlocks) throws IOException {
+		//TODO -- check here that numBlocks divides evenly into this.numCols
+		
+		Configuration initialConf = getConf() == null ? new Configuration() : getConf();
 
+    conf = MatrixMultBlockATransPrepJob.createMatrixMultBlockATransPrepJobConf(initialConf, rowPath, outputPath, numBlocks);
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
+    DistributedRowMatrix out = new DistributedRowMatrix(outputPath, outputTmpPath, numRows * numBlocks, numCols / numBlocks);
+    out.setConf(initialConf);
+    return out;
+	}
+
+	public DistributedRowMatrix prepBBlocks(Path outputPath, int numBlocks) throws IOException {
+		//TODO -- check here that numBlocks divides evenly into this.numCols
+		
+		Configuration initialConf = getConf() == null ? new Configuration() : getConf();
+
+    conf = MatrixMultBlockBPrepJob.createMatrixMultBlockBPrepJobConf(initialConf, rowPath, outputPath, numBlocks);
+    RunningJob job = JobClient.runJob(new JobConf(conf));
+    job.waitForCompletion();
+    DistributedRowMatrix out = new DistributedRowMatrix(outputPath, outputTmpPath, numRows * numBlocks, numCols);
+    out.setConf(initialConf);
+    return out;
+	}
+	
   public DistributedRowMatrix ensureMatchingPartitionAndOrder(Configuration initialConf, DistributedRowMatrix other) throws IOException {
     SequenceFileInfo thisSeqInfo = getSequenceFileInfo(this);
     SequenceFileInfo otherSeqInfo = getSequenceFileInfo(other);

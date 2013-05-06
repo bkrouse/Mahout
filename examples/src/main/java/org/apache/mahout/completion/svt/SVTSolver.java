@@ -246,8 +246,29 @@ public class SVTSolver extends AbstractJob {
 //  	SVD svdtmp = computeSVD(conf, new Path(workingPath, Integer.toString(1)), Ytmp, 14);
 //
 //  	
-//    if(1==1)
-//	  	return;
+
+	  DistributedRowMatrix Utranstmp = new DistributedRowMatrix(new Path("svt/netflix/tmp/svt-working/1/Utrans-repartitioned-210"), workingPath, 14, 480195);
+	  Utranstmp.setConf(conf);
+	  DistributedRowMatrix SVtmp = new DistributedRowMatrix(new Path("svt/netflix/tmp/svt-working/1/SV-repartitioned-210"), workingPath, 14, 17770);
+	  SVtmp.setConf(conf);
+
+  	
+  	//create the blocks on U and SV...
+  	//U first:
+  	DistributedRowMatrix UtransBlockstmp = Utranstmp.prepABlocks(new Path("svt/netflix/tmp/svt-working/1/Utrans-repartitioned-210-block-15"), 15);
+    UtransBlockstmp.setConf(conf);  	
+  	//Now SV:
+  	DistributedRowMatrix SVBlockstmp = SVtmp.prepBBlocks(new Path("svt/netflix/tmp/svt-working/1/SV-repartitioned-210-block-15"), 15);
+    SVBlockstmp.setConf(conf);
+  	
+  	//Reference the block results in computing X
+  	DistributedRowMatrix Xtmp = UtransBlockstmp.times(SVBlockstmp, new Path("svt/netflix/tmp/svt-working/1/Xtmp")); 
+  	Xtmp.setConf(conf);
+  	
+  	log.info("Xtmp.numRows()=" + Xtmp.numRows() + ", Xtmp.numCols()=" + Xtmp.numCols());
+  	
+  	if(1==1)
+	  	return;
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
@@ -376,11 +397,28 @@ public class SVTSolver extends AbstractJob {
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "SV=DiagS.times(Vtrans)", timingEnd - timingStart);
 
+    	
+    	//create the blocks on U and SV...
+    	//U first:
     	timingStart = System.currentTimeMillis();
-    	DistributedRowMatrix X = Utrans.times(SV, new Path(iterationWorkingPath,"X")); 
+    	DistributedRowMatrix UtransBlocks = Utrans.prepABlocks(new Path(iterationWorkingPath,"Utrans-blocks-15"), 15);
+      UtransBlocks.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "Utrans.prepABlocks(15)", timingEnd - timingStart);
+    	
+    	//Now SV:
+    	timingStart = System.currentTimeMillis();
+    	DistributedRowMatrix SVBlocks = SV.prepBBlocks(new Path(iterationWorkingPath,"SV-blocks-15"), 15);
+      SVBlocks.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "SV.prepBBlocks(15)", timingEnd - timingStart);
+    	
+    	//Reference the block results in computing X
+    	timingStart = System.currentTimeMillis();
+    	DistributedRowMatrix X = UtransBlocks.times(SVBlocks, new Path(iterationWorkingPath,"X")); 
     	X.setConf(conf);
     	timingEnd = System.currentTimeMillis();
-    	writeTimingResults(k, "X=Utrans.times(SV)", timingEnd - timingStart);
+    	writeTimingResults(k, "X=UtransBlocks.times(SVBlocks)", timingEnd - timingStart);
     	
     	
     	//checking stopping conditions
