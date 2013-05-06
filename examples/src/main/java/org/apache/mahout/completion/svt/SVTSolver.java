@@ -233,42 +233,29 @@ public class SVTSolver extends AbstractJob {
     	outStream = new FileOutputStream("/home/bkrouse/Apache/data/output.log");
   	writer = new BufferedWriter(new OutputStreamWriter(outStream, Charsets.UTF_8));
   	    
-  	
-//		fs.delete(new Path(workingPath.getParent(), "test/XminusMonOmega"), true);
-//	  DistributedRowMatrix matrixtmp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/sampled-m-repartitioned-57470"), workingPath, numRows, numCols);
-//	  matrixtmp.setConf(conf);
-//	  DistributedRowMatrix XminusMtemp = new DistributedRowMatrix(new Path(workingPath.getParent(), "test/XminusM"), workingPath, numRows, numCols);
-//	  XminusMtemp.setConf(conf);
-//	  DistributedRowMatrix XminusMonOmegatmp = XminusMtemp.projection(new Path(workingPath.getParent(), "test/XminusMonOmega"), matrixtmp);
-//
-//	  DistributedRowMatrix Ytmp = new DistributedRowMatrix(new Path(workingPath, "Y0"), workingPath, numRows, numCols);
-//	  Ytmp.setConf(conf);
-//  	SVD svdtmp = computeSVD(conf, new Path(workingPath, Integer.toString(1)), Ytmp, 14);
+  
+//	  DistributedRowMatrix Utranstmp = new DistributedRowMatrix(new Path("svt/netflix/tmp/svt-working/1/Utrans-repartitioned-210"), workingPath, 14, 480195);
+//	  Utranstmp.setConf(conf);
+//	  DistributedRowMatrix SVtmp = new DistributedRowMatrix(new Path("svt/netflix/tmp/svt-working/1/SV-repartitioned-210"), workingPath, 14, 17770);
+//	  SVtmp.setConf(conf);
 //
 //  	
-
-	  DistributedRowMatrix Utranstmp = new DistributedRowMatrix(new Path("svt/netflix/tmp/svt-working/1/Utrans-repartitioned-210"), workingPath, 14, 480195);
-	  Utranstmp.setConf(conf);
-	  DistributedRowMatrix SVtmp = new DistributedRowMatrix(new Path("svt/netflix/tmp/svt-working/1/SV-repartitioned-210"), workingPath, 14, 17770);
-	  SVtmp.setConf(conf);
-
-  	
-  	//create the blocks on U and SV...
-  	//U first:
-  	DistributedRowMatrix UtransBlockstmp = Utranstmp.prepABlocks(new Path("svt/netflix/tmp/svt-working/1/Utrans-repartitioned-210-block-15"), 15);
-    UtransBlockstmp.setConf(conf);  	
-  	//Now SV:
-  	DistributedRowMatrix SVBlockstmp = SVtmp.prepBBlocks(new Path("svt/netflix/tmp/svt-working/1/SV-repartitioned-210-block-15"), 15);
-    SVBlockstmp.setConf(conf);
-  	
-  	//Reference the block results in computing X
-  	DistributedRowMatrix Xtmp = UtransBlockstmp.times(SVBlockstmp, new Path("svt/netflix/tmp/svt-working/1/Xtmp")); 
-  	Xtmp.setConf(conf);
-  	
-  	log.info("Xtmp.numRows()=" + Xtmp.numRows() + ", Xtmp.numCols()=" + Xtmp.numCols());
-  	
-  	if(1==1)
-	  	return;
+//  	//create the blocks on U and SV...
+//  	//U first:
+//  	DistributedRowMatrix UtransBlockstmp = Utranstmp.prepABlocks(new Path("svt/netflix/tmp/svt-working/1/Utrans-repartitioned-210-block-15"), 15);
+//    UtransBlockstmp.setConf(conf);  	
+//  	//Now SV:
+//  	DistributedRowMatrix SVBlockstmp = SVtmp.prepBBlocks(new Path("svt/netflix/tmp/svt-working/1/SV-repartitioned-210-block-15"), 15);
+//    SVBlockstmp.setConf(conf);
+//  	
+//  	//Reference the block results in computing X
+//  	DistributedRowMatrix Xtmp = UtransBlockstmp.times(SVBlockstmp, new Path("svt/netflix/tmp/svt-working/1/Xtmp")); 
+//  	Xtmp.setConf(conf);
+//  	
+//  	log.info("Xtmp.numRows()=" + Xtmp.numRows() + ", Xtmp.numCols()=" + Xtmp.numCols());
+//  	
+//  	if(1==1)
+//	  	return;
     
     //cleanup outputPath and workingPath is overwrite is true, otherwise bail
     if(overwrite) {
