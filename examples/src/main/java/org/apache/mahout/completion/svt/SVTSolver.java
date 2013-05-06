@@ -402,7 +402,7 @@ public class SVTSolver extends AbstractJob {
     	
     	//Reference the block results in computing X
     	timingStart = System.currentTimeMillis();
-    	DistributedRowMatrix X = UtransBlocks.times(SVBlocks, new Path(iterationWorkingPath,"X")); 
+    	DistributedRowMatrix X = UtransBlocks.times(SVBlocks, new Path(iterationWorkingPath,"X"), 15); 
     	X.setConf(conf);
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "X=UtransBlocks.times(SVBlocks)", timingEnd - timingStart);

@@ -227,7 +227,14 @@ public class DistributedRowMatrix implements VectorIterable, Configurable {
                                                             numBlocks);
     RunningJob job = JobClient.runJob(new JobConf(conf));
     job.waitForCompletion();
-    DistributedRowMatrix out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());
+    DistributedRowMatrix out;
+  	log.info("times(): this.numRows()xthis.numCols (" + this.numRows + "x" + this.numCols + "), other.numRows()xother.numCols (" + other.numRows + "x" + other.numCols + ")");
+    if(numBlocks==MatrixMultiplicationJob.NO_BLOCKS)
+    	out = new DistributedRowMatrix(outPath, outputTmpPath, numCols, other.numCols());
+    else {
+    	out = new DistributedRowMatrix(outPath, outputTmpPath, numCols*numBlocks, other.numCols());    	
+    }
+  	log.info("times(): out.numRows()xout.numCols (" + out.numRows() + "x" +  other.numCols() + ")");
     out.setConf(initialConf);
     return out;
   }
