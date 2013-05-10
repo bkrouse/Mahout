@@ -384,7 +384,7 @@ public class SVTSolver extends AbstractJob {
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "SV=DiagS.times(Vtrans)", timingEnd - timingStart);
 
-    	
+/*
     	//create the blocks on U and SV...
     	//U first:
     	timingStart = System.currentTimeMillis();
@@ -406,8 +406,15 @@ public class SVTSolver extends AbstractJob {
     	X.setConf(conf);
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "X=UtransBlocks.times(SVBlocks)", timingEnd - timingStart);
+*/
     	
-    	
+    	//Reference the block results in computing X
+    	timingStart = System.currentTimeMillis();
+    	DistributedRowMatrix X = Utrans.times(SV, new Path(iterationWorkingPath,"X"), 15); 
+    	X.setConf(conf);
+    	timingEnd = System.currentTimeMillis();
+    	writeTimingResults(k, "X=Utrans.times(SV)", timingEnd - timingStart);
+
     	//checking stopping conditions
     	timingStart = System.currentTimeMillis();
     	DistributedRowMatrix XminusM = X.plus(new Path(iterationWorkingPath, "XminusM"), matrix, -1);
@@ -475,7 +482,7 @@ public class SVTSolver extends AbstractJob {
 	  int r = 10000;
 	  int k = desiredRank;
 	  int p = 15;
-	  int reduceTasks = 10; //check shell scripts for better default
+	  int reduceTasks = 1; //check shell scripts for better default
 	  SSVDSolver solver = 
 	    new SSVDSolver(conf,
 	                   new Path[] {Y.getRowPath()},
