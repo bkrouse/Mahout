@@ -279,9 +279,9 @@ public class SVTSolver extends AbstractJob {
     
     //kicking step
   	timingStart = System.currentTimeMillis();
-//    double norm2 = norm2(matrix);
-//  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
-  	int k0 = 91;
+    double norm2 = norm2(matrix);
+  	int k0 = (int)Math.ceil(threshold / (stepSize*norm2) );  	
+//  	int k0 = 91;
   	log.info("k0=" + k0 + ", stepSize=" + stepSize);
   	timingEnd = System.currentTimeMillis();
   	writeTimingResults(0, "kickingStep - norm2: k0=" + k0 + ", stepSize=" + stepSize, timingEnd - timingStart);
