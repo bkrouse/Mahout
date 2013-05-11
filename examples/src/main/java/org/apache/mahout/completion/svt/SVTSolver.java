@@ -484,7 +484,7 @@ public class SVTSolver extends AbstractJob {
 	  int r = 10000;
 	  int k = desiredRank;
 	  int p = 15;
-	  int reduceTasks = 1; //check shell scripts for better default
+	  int reduceTasks = conf.getInt("mapred.reduce.tasks", 10); 
 	  SSVDSolver solver = 
 	    new SSVDSolver(conf,
 	                   new Path[] {Y.getRowPath()},
