@@ -42,6 +42,7 @@ public class SVTEvaluator extends AbstractJob {
 	  	
 	    addInputOption(); //Path to DistribtuedMatrix form of the input matrix
 	    addOutputOption();
+	    addOption("numPartitions", "np", "Number of partitions to split the input matrix into");
 	    addOption("numRows", "nr", "Number of rows of the input matrix");
 	    addOption("numCols", "nc", "Number of columns of the input matrix");
 	    addOption("omega", "o", "Path to the vector OmegaRowBasedSorted as a SequenceFile<IntWritable,VectorWritable>, which describes the sampled values from input matrix (assume sorted and row-based indices!)");
@@ -54,6 +55,7 @@ public class SVTEvaluator extends AbstractJob {
 	    Path inputPath = getInputPath();
 	    Path outputPath = getOutputPath();
 	    Path tempPath = getTempPath();
+	    int numPartitions = Integer.parseInt(getOption("numPartitions"));
 	    int numRows = Integer.parseInt(getOption("numRows"));
 	    int numCols = Integer.parseInt(getOption("numCols"));
 	    Path omegaPath = new Path(getOption("omega"));
@@ -118,11 +120,17 @@ public class SVTEvaluator extends AbstractJob {
       }
       
 
+      //repartition
+	  DistributedRowMatrix matrix = new DistributedRowMatrix(sampledMatrixPath, tempPath, 0, 0);
+	  matrix.setConf(conf);
+	  DistributedRowMatrix repartitionedMatrix = matrix.repartitionSequenceFile(numPartitions);
+
+      
 
       //call SVTSolver
       SVTSolver svtSolver = new SVTSolver();
       svtSolver.solve(conf,
-          sampledMatrixPath,
+          repartitionedMatrix.getRowPath(),
           outputPath,
           new Path(tempPath, "svt-working"),
           numRows,
