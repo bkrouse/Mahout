@@ -45,6 +45,7 @@ import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.decomposer.lanczos.LanczosSolver;
 import org.apache.mahout.math.decomposer.lanczos.LanczosState;
 import org.apache.mahout.math.hadoop.DistributedRowMatrix;
+import org.apache.mahout.math.hadoop.MatrixMultiplicationJob;
 import org.apache.mahout.math.hadoop.stochasticsvd.SSVDSolver;
 import org.apache.mahout.math.Vector;
 import org.slf4j.Logger;
@@ -410,7 +411,8 @@ public class SVTSolver extends AbstractJob {
     	
     	//Reference the block results in computing X
     	timingStart = System.currentTimeMillis();
-    	DistributedRowMatrix X = Utrans.times(SV, new Path(iterationWorkingPath,"X"), 15); 
+//    	DistributedRowMatrix X = Utrans.times(SV, new Path(iterationWorkingPath,"X"), 15); 
+  	DistributedRowMatrix X = Utrans.times(SV, new Path(iterationWorkingPath,"X"), MatrixMultiplicationJob.NO_BLOCKS); 
     	X.setConf(conf);
     	timingEnd = System.currentTimeMillis();
     	writeTimingResults(k, "X=Utrans.times(SV)", timingEnd - timingStart);
