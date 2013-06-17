@@ -19,6 +19,7 @@ package org.apache.mahout.completion.svt.conversion;
 import com.google.common.io.Closeables;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -33,8 +34,10 @@ import org.apache.mahout.math.VectorWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -56,20 +59,27 @@ public final class DistributedMatrixFromCsv extends AbstractJob {
 
   public void convertCSV(Path inputPath, Path outputPath) throws IOException {
     Configuration conf = new Configuration(getConf());
-    FileSystem fs = FileSystem.get(inputPath.toUri(), conf);
+    FileSystem inputfs = FileSystem.get(inputPath.toUri(), conf);
+    FileSystem outputfs = FileSystem.get(outputPath.toUri(), conf);
     SequenceFile.Writer writer = null;
-    File csvFile = new File(inputPath.toString());
+    FSDataInputStream csvInputStream = null;
+    BufferedReader reader = null;
     int row=0;
     Pattern splitter = Pattern.compile(this.SPLITTER.toString());
     
     try {  	
-      writer = new SequenceFile.Writer(fs,
+      writer = new SequenceFile.Writer(outputfs,
           conf,
           outputPath,
           IntWritable.class,
           VectorWritable.class);
-      
-      for (String line : new FileLineIterable(csvFile)) {
+
+      csvInputStream = inputfs.open(inputPath);
+			reader = new BufferedReader(new InputStreamReader(csvInputStream));
+			
+
+			String line;
+      while ((line = reader.readLine()) != null) { 
       	String[] entries = splitter.split(line);
 	      Vector v = new RandomAccessSparseVector(entries.length);
 	      for (int m = 0; m < entries.length; m++) {
@@ -82,6 +92,8 @@ public final class DistributedMatrixFromCsv extends AbstractJob {
 
     } finally {
     	Closeables.closeQuietly(writer);
+    	Closeables.closeQuietly(reader);
+    	Closeables.closeQuietly(csvInputStream);
     }
   }
 
