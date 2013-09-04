@@ -72,7 +72,7 @@ public class DisplaySpectralKMeans extends DisplayClustering {
         }
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
     int maxIter = 10;
     double convergenceDelta = 0.001;

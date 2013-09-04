@@ -30,6 +30,8 @@ import org.apache.mahout.math.list.IntArrayList;
 import org.apache.mahout.math.stats.OnlineSummarizer;
 import org.apache.mahout.vectorizer.encoders.ConstantValueEncoder;
 import org.apache.mahout.vectorizer.encoders.FeatureVectorEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -64,8 +66,9 @@ public final class SimpleCsvExamples {
   public static final char SEPARATOR_CHAR = '\t';
   private static final int FIELDS = 100;
 
-  private SimpleCsvExamples() {
-  }
+  private static final Logger log = LoggerFactory.getLogger(SimpleCsvExamples.class);
+
+  private SimpleCsvExamples() {}
 
   public static void main(String[] args) throws IOException {
     FeatureVectorEncoder[] encoder = new FeatureVectorEncoder[FIELDS];
@@ -89,7 +92,7 @@ public final class SimpleCsvExamples {
           out.println(x);
         }
       } finally {
-        Closeables.closeQuietly(out);
+        Closeables.close(out, false);
       }
     } else if ("--parse".equals(args[0])) {
       BufferedReader in = Files.newReader(new File(args[1]), Charsets.UTF_8);
@@ -105,7 +108,7 @@ public final class SimpleCsvExamples {
           line = in.readLine();
         }
       } finally {
-        Closeables.closeQuietly(in);
+        Closeables.close(in, true);
       }
       String separator = "";
       for (int i = 0; i < FIELDS; i++) {
@@ -126,7 +129,7 @@ public final class SimpleCsvExamples {
           line = in.read();
         }
       } finally {
-        Closeables.closeQuietly(in);
+        Closeables.close(in, true);
       }
       String separator = "";
       for (int i = 0; i < FIELDS; i++) {
@@ -277,7 +280,11 @@ public final class SimpleCsvExamples {
 
     @Override
     public void close() {
-      Closeables.closeQuietly(in);
+      try {
+        Closeables.close(in, true);
+      } catch (IOException e) {
+        log.error(e.getMessage(), e);
+      }
     }
   }
 }

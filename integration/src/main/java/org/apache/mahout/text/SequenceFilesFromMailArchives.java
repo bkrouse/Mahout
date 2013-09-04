@@ -17,14 +17,19 @@
 package org.apache.mahout.text;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
-
-import org.apache.commons.cli2.builder.ArgumentBuilder;
-import org.apache.commons.cli2.builder.DefaultOptionBuilder;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.commandline.DefaultOptionCreator;
 import org.apache.mahout.utils.email.MailOptions;
 import org.apache.mahout.utils.email.MailProcessor;
@@ -36,7 +41,6 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -49,21 +53,32 @@ import java.util.regex.Pattern;
  */
 public final class SequenceFilesFromMailArchives extends AbstractJob {
 
-  private static final Logger log = LoggerFactory.getLogger(
-      SequenceFilesFromMailArchives.class);
+  private static final Logger log = LoggerFactory.getLogger(SequenceFilesFromMailArchives.class);
+
+  public static final String[] CHUNK_SIZE_OPTION     = {"chunkSize", "chunk"};
+  public static final String[] KEY_PREFIX_OPTION     = {"keyPrefix", "prefix"};
+  public static final String[] CHARSET_OPTION        = {"charset", "c"};
+  public static final String[] SUBJECT_OPTION        = {"subject", "s"};
+  public static final String[] TO_OPTION             = {"to", "to"};
+  public static final String[] FROM_OPTION           = {"from", "from"};
+  public static final String[] REFERENCES_OPTION     = {"references", "refs"};
+  public static final String[] BODY_OPTION           = {"body", "b"};
+  public static final String[] STRIP_QUOTED_OPTION   = {"stripQuoted", "q"};
+  public static final String[] QUOTED_REGEX_OPTION   = {"quotedRegex", "regex"};
+  public static final String[] SEPARATOR_OPTION      = {"separator", "sep"};
+  public static final String[] BODY_SEPARATOR_OPTION = {"bodySeparator", "bodySep"};
+  public static final String BASE_INPUT_PATH         = "baseinputpath";
+
+  private static final int MAX_JOB_SPLIT_LOCATIONS = 1000000;
 
   public void createSequenceFiles(MailOptions options) throws IOException {
-    ChunkedWriter writer = new ChunkedWriter(
-        getConf(), options.getChunkSize(), new Path(options.getOutputDir()));
-    MailProcessor processor = new MailProcessor(
-        options, options.getPrefix(), writer);
+    ChunkedWriter writer = new ChunkedWriter(getConf(), options.getChunkSize(), new Path(options.getOutputDir()));
+    MailProcessor processor = new MailProcessor(options, options.getPrefix(), writer);
     try {
       if (options.getInput().isDirectory()) {
-        PrefixAdditionFilter filter = new PrefixAdditionFilter(
-            processor, writer);
+        PrefixAdditionFilter filter = new PrefixAdditionFilter(processor, writer);
         options.getInput().listFiles(filter);
-        log.info("Parsed {} messages from {}", filter.getMessageCount(),
-            options.getInput().getAbsolutePath());
+        log.info("Parsed {} messages from {}", filter.getMessageCount(), options.getInput().getAbsolutePath());
       } else {
         long start = System.currentTimeMillis();
         long cnt = processor.parseMboxLineByLine(options.getInput());
@@ -71,7 +86,7 @@ public final class SequenceFilesFromMailArchives extends AbstractJob {
         log.info("Parsed {} messages from {} in time: {}", cnt, options.getInput().getAbsolutePath(), finish - start);
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
   }
 
@@ -95,12 +110,11 @@ public final class SequenceFilesFromMailArchives extends AbstractJob {
       if (current.isDirectory()) {
         log.info("At {}", current.getAbsolutePath());
         PrefixAdditionFilter nested = new PrefixAdditionFilter(
-            new MailProcessor(processor.getOptions(), processor.getPrefix()
-                + File.separator + current.getName(), writer), writer);
+          new MailProcessor(processor.getOptions(), processor.getPrefix()
+            + File.separator + current.getName(), writer), writer);
         current.listFiles(nested);
         long dirCount = nested.getMessageCount();
-        log.info("Parsed {} messages from directory {}", dirCount,
-            current.getAbsolutePath());
+        log.info("Parsed {} messages from directory {}", dirCount, current.getAbsolutePath());
         messageCount += dirCount;
       } else {
         try {
@@ -119,69 +133,31 @@ public final class SequenceFilesFromMailArchives extends AbstractJob {
 
   @Override
   public int run(String[] args) throws Exception {
-    DefaultOptionBuilder obuilder = new DefaultOptionBuilder();
-    ArgumentBuilder abuilder = new ArgumentBuilder();
-    //GroupBuilder gbuilder = new GroupBuilder();
-
     addInputOption();
     addOutputOption();
+    addOption(DefaultOptionCreator.methodOption().create());
 
-    addOption(obuilder.withLongName("chunkSize").withArgument(
-        abuilder.withName("chunkSize").withMinimum(1).withMaximum(1).create())
-        .withDescription("The chunkSize in MegaBytes. Defaults to 64")
-        .withShortName("chunk").create());
+    addOption(CHUNK_SIZE_OPTION[0], CHUNK_SIZE_OPTION[1], "The chunkSize in MegaBytes. Defaults to 64", "64");
+    addOption(KEY_PREFIX_OPTION[0], KEY_PREFIX_OPTION[1], "The prefix to be prepended to the key", "");
+    addOption(CHARSET_OPTION[0], CHARSET_OPTION[1],
+      "The name of the character encoding of the input files. Default to UTF-8", "UTF-8");
+    addFlag(SUBJECT_OPTION[0], SUBJECT_OPTION[1], "Include the Mail subject as part of the text.  Default is false");
+    addFlag(TO_OPTION[0], TO_OPTION[1], "Include the to field in the text.  Default is false");
+    addFlag(FROM_OPTION[0], FROM_OPTION[1], "Include the from field in the text.  Default is false");
+    addFlag(REFERENCES_OPTION[0], REFERENCES_OPTION[1],
+      "Include the references field in the text.  Default is false");
+    addFlag(BODY_OPTION[0], BODY_OPTION[1], "Include the body in the output.  Default is false");
+    addFlag(STRIP_QUOTED_OPTION[0], STRIP_QUOTED_OPTION[1],
+      "Strip (remove) quoted email text in the body.  Default is false");
+    addOption(QUOTED_REGEX_OPTION[0], QUOTED_REGEX_OPTION[1],
+        "Specify the regex that identifies quoted text.  "
+          + "Default is to look for > or | at the beginning of the line.");
+    addOption(SEPARATOR_OPTION[0], SEPARATOR_OPTION[1],
+        "The separator to use between metadata items (to, from, etc.).  Default is \\n", "\n");
+    addOption(BODY_SEPARATOR_OPTION[0], BODY_SEPARATOR_OPTION[1],
+        "The separator to use between lines in the body.  Default is \\n.  "
+          + "Useful to change if you wish to have the message be on one line", "\n");
 
-    addOption(obuilder.withLongName("keyPrefix").withArgument(
-        abuilder.withName("keyPrefix").withMinimum(1).withMaximum(1).create())
-        .withDescription("The prefix to be prepended to the key")
-        .withShortName("prefix").create());
-    addOption(obuilder.withLongName("charset")
-        .withRequired(true).withArgument(abuilder.withName("charset")
-            .withMinimum(1).withMaximum(1).create()).withDescription(
-            "The name of the character encoding of the input files")
-        .withShortName("c").create());
-    addOption(obuilder.withLongName("subject")
-        .withRequired(false).withDescription(
-            "Include the Mail subject as part of the text.  Default is false")
-        .withShortName("s").create());
-    addOption(obuilder.withLongName("to").withRequired(false)
-        .withDescription("Include the to field in the text.  Default is false")
-        .withShortName("to").create());
-    addOption(obuilder.withLongName("from").withRequired(false).withDescription(
-        "Include the from field in the text.  Default is false")
-        .withShortName("from").create());
-    addOption(obuilder.withLongName("references")
-        .withRequired(false).withDescription(
-            "Include the references field in the text.  Default is false")
-        .withShortName("refs").create());
-    addOption(obuilder.withLongName("body").withRequired(false)
-        .withDescription("Include the body in the output.  Default is false")
-        .withShortName("b").create());
-    addOption(obuilder.withLongName("stripQuoted")
-        .withRequired(false).withDescription(
-            "Strip (remove) quoted email text in the body.  Default is false")
-        .withShortName("q").create());
-    addOption(
-        obuilder.withLongName("quotedRegex")
-            .withRequired(false).withArgument(abuilder.withName("regex")
-                .withMinimum(1).withMaximum(1).create()).withDescription(
-                "Specify the regex that identifies quoted text.  "
-                    + "Default is to look for > or | at the beginning of the line.")
-            .withShortName("q").create());
-    addOption(
-        obuilder.withLongName("separator")
-            .withRequired(false).withArgument(abuilder.withName("separator")
-                .withMinimum(1).withMaximum(1).create()).withDescription(
-                "The separator to use between metadata items (to, from, etc.).  Default is \\n")
-            .withShortName("sep").create());
-
-    addOption(
-        obuilder.withLongName("bodySeparator")
-            .withRequired(false).withArgument(abuilder.withName("bodySeparator")
-                .withMinimum(1).withMaximum(1).create()).withDescription(
-                "The separator to use between lines in the body.  Default is \\n.  "
-                    + "Useful to change if you wish to have the message be on one line")
-            .withShortName("bodySep").create());
     addOption(DefaultOptionCreator.helpOption());
     Map<String, List<String>> parsedArgs = parseArguments(args);
     if (parsedArgs == null) {
@@ -191,16 +167,16 @@ public final class SequenceFilesFromMailArchives extends AbstractJob {
     String outputDir = getOutputPath().toString();
 
     int chunkSize = 64;
-    if (hasOption("chunkSize")) {
-      chunkSize = Integer.parseInt(getOption("chunkSize"));
+    if (hasOption(CHUNK_SIZE_OPTION[0])) {
+      chunkSize = Integer.parseInt(getOption(CHUNK_SIZE_OPTION[0]));
     }
 
     String prefix = "";
-    if (hasOption("keyPrefix")) {
-      prefix = getOption("keyPrefix");
+    if (hasOption(KEY_PREFIX_OPTION[0])) {
+      prefix = getOption(KEY_PREFIX_OPTION[0]);
     }
 
-    Charset charset = Charset.forName(getOption("charset"));
+    Charset charset = Charset.forName(getOption(CHARSET_OPTION[0]));
     MailOptions options = new MailOptions();
     options.setInput(input);
     options.setOutputDir(outputDir);
@@ -210,46 +186,146 @@ public final class SequenceFilesFromMailArchives extends AbstractJob {
 
     List<Pattern> patterns = Lists.newArrayListWithCapacity(5);
     // patternOrder is used downstream so that we can know what order the text
-    // is in instead
-    // of encoding it in the string, which
+    // is in instead of encoding it in the string, which
     // would require more processing later to remove it pre feature selection.
-    Map<String,Integer> patternOrder = new HashMap<String,Integer>();
+    Map<String, Integer> patternOrder = Maps.newHashMap();
     int order = 0;
-    if (hasOption("from")) {
+    if (hasOption(FROM_OPTION[0])) {
       patterns.add(MailProcessor.FROM_PREFIX);
       patternOrder.put(MailOptions.FROM, order++);
     }
-    if (hasOption("to")) {
+    if (hasOption(TO_OPTION[0])) {
       patterns.add(MailProcessor.TO_PREFIX);
       patternOrder.put(MailOptions.TO, order++);
     }
-    if (hasOption("references")) {
+    if (hasOption(REFERENCES_OPTION[0])) {
       patterns.add(MailProcessor.REFS_PREFIX);
       patternOrder.put(MailOptions.REFS, order++);
     }
-    if (hasOption("subject")) {
+    if (hasOption(SUBJECT_OPTION[0])) {
       patterns.add(MailProcessor.SUBJECT_PREFIX);
-      patternOrder.put(MailOptions.SUBJECT, order++);
+      patternOrder.put(MailOptions.SUBJECT, order += 1);
     }
-    options.setStripQuotedText(hasOption("stripQuoted"));
+    options.setStripQuotedText(hasOption(STRIP_QUOTED_OPTION[0]));
 
     options.setPatternsToMatch(patterns.toArray(new Pattern[patterns.size()]));
     options.setPatternOrder(patternOrder);
-    options.setIncludeBody(hasOption("body"));
-    options.setSeparator("\n");
-    if (hasOption("separator")) {
-      options.setSeparator(getOption("separator"));
+    options.setIncludeBody(hasOption(BODY_OPTION[0]));
+
+    if (hasOption(SEPARATOR_OPTION[0])) {
+      options.setSeparator(getOption(SEPARATOR_OPTION[0]));
+    } else {
+      options.setSeparator("\n");
     }
-    if (hasOption("bodySeparator")) {
-      options.setBodySeparator(getOption("bodySeparator"));
+
+    if (hasOption(BODY_SEPARATOR_OPTION[0])) {
+      options.setBodySeparator(getOption(BODY_SEPARATOR_OPTION[0]));
     }
-    if (hasOption("quotedRegex")) {
-      options.setQuotedTextPattern(Pattern.compile(getOption("quotedRegex")));
+
+    if (hasOption(QUOTED_REGEX_OPTION[0])) {
+      options.setQuotedTextPattern(Pattern.compile(getOption(QUOTED_REGEX_OPTION[0])));
     }
+
+    if (getOption(DefaultOptionCreator.METHOD_OPTION,
+      DefaultOptionCreator.MAPREDUCE_METHOD).equals(DefaultOptionCreator.SEQUENTIAL_METHOD)) {
+      runSequential(options);
+    } else {
+      runMapReduce(getInputPath(), getOutputPath());
+    }
+
+    return 0;
+  }
+
+  private int runSequential(MailOptions options)
+    throws IOException, InterruptedException, NoSuchMethodException {
+
     long start = System.currentTimeMillis();
     createSequenceFiles(options);
     long finish = System.currentTimeMillis();
     log.info("Conversion took {}ms", finish - start);
+
+    return 0;
+  }
+
+  private int runMapReduce(Path input, Path output) throws IOException, InterruptedException, ClassNotFoundException {
+
+    Job job = prepareJob(input, output, MultipleTextFileInputFormat.class, SequenceFilesFromMailArchivesMapper.class,
+      Text.class, Text.class, SequenceFileOutputFormat.class, "SequentialFilesFromMailArchives");
+
+    Configuration jobConfig = job.getConfiguration();
+
+    if (hasOption(KEY_PREFIX_OPTION[0])) {
+      jobConfig.set(KEY_PREFIX_OPTION[1], getOption(KEY_PREFIX_OPTION[0]));
+    }
+
+    int chunkSize = 0;
+    if (hasOption(CHUNK_SIZE_OPTION[0])) {
+      chunkSize = Integer.parseInt(getOption(CHUNK_SIZE_OPTION[0]));
+      jobConfig.set(CHUNK_SIZE_OPTION[0], String.valueOf(chunkSize));
+    }
+
+    Charset charset;
+    if (hasOption(CHARSET_OPTION[0])) {
+      charset = Charset.forName(getOption(CHARSET_OPTION[0]));
+      jobConfig.set(CHARSET_OPTION[0], charset.displayName());
+    }
+
+    if (hasOption(FROM_OPTION[0])) {
+      jobConfig.set(FROM_OPTION[1], "true");
+    }
+
+    if (hasOption(TO_OPTION[0])) {
+      jobConfig.set(TO_OPTION[1], "true");
+    }
+
+    if (hasOption(REFERENCES_OPTION[0])) {
+      jobConfig.set(REFERENCES_OPTION[1], "true");
+    }
+
+    if (hasOption(SUBJECT_OPTION[0])) {
+      jobConfig.set(SUBJECT_OPTION[1], "true");
+    }
+
+    if (hasOption(QUOTED_REGEX_OPTION[0])) {
+      jobConfig.set(QUOTED_REGEX_OPTION[1], Pattern.compile(getOption(QUOTED_REGEX_OPTION[0])).toString());
+    }
+
+    if (hasOption(SEPARATOR_OPTION[0])) {
+      jobConfig.set(SEPARATOR_OPTION[1], getOption(SEPARATOR_OPTION[0]));
+    } else {
+      jobConfig.set(SEPARATOR_OPTION[1], "\n");
+    }
+
+    if (hasOption(BODY_OPTION[0])) {
+      jobConfig.set(BODY_OPTION[1], "true");
+    } else {
+      jobConfig.set(BODY_OPTION[1], "false");
+    }
+
+    if (hasOption(BODY_SEPARATOR_OPTION[0])) {
+      jobConfig.set(BODY_SEPARATOR_OPTION[1], getOption(BODY_SEPARATOR_OPTION[0]));
+    } else {
+      jobConfig.set(BODY_SEPARATOR_OPTION[1], "\n");
+    }
+
+    FileSystem fs = FileSystem.get(jobConfig);
+    FileStatus fsFileStatus = fs.getFileStatus(inputPath);
+
+    jobConfig.set(BASE_INPUT_PATH, inputPath.toString());
+    String inputDirList = HadoopUtil.buildDirList(fs, fsFileStatus);
+    FileInputFormat.setInputPaths(job, inputDirList);
+
+    long chunkSizeInBytes = chunkSize * 1024 * 1024;
+    // need to set this to a multiple of the block size, or no split happens
+    FileInputFormat.setMaxInputSplitSize(job, chunkSizeInBytes);
+
+    // set the max split locations, otherwise we get nasty debug stuff
+    jobConfig.set("mapreduce.job.max.split.locations", String.valueOf(MAX_JOB_SPLIT_LOCATIONS));
+
+    boolean succeeded = job.waitForCompletion(true);
+    if (!succeeded) {
+      return -1;
+    }
     return 0;
   }
 }

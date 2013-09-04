@@ -18,8 +18,6 @@
 package org.apache.mahout.math;
 
 
-import java.util.Iterator;
-
 import org.apache.mahout.math.function.DoubleDoubleFunction;
 import org.apache.mahout.math.function.DoubleFunction;
 
@@ -28,7 +26,7 @@ import org.apache.mahout.math.function.DoubleFunction;
  * constructor that takes an int for cardinality and a no-arg constructor that can be used for marshalling the Writable
  * instance <p/> NOTE: Implementations may choose to reuse the Vector.Element in the Iterable methods
  */
-public interface Vector extends Cloneable, Iterable<Vector.Element> {
+public interface Vector extends Cloneable {
 
   /** @return a formatted String suitable for output */
   String asFormatString();
@@ -102,7 +100,7 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
 
   /**
    * @return true iff this implementation should be considered to be iterable in index order in an efficient way.
-   *  In particular this implies that {@link #iterator()} and {@link #iterateNonZero()} return elements
+   *  In particular this implies that {@link #all()} and {@link #nonZeroes()} ()} return elements
    *  in ascending order by index.
    */
   boolean isSequentialAccess();
@@ -112,24 +110,12 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
    *
    * @return a new Vector
    */
+  @SuppressWarnings("CloneDoesntDeclareCloneNotSupportedException")
   Vector clone();
 
-  /**
-   * Iterates over all elements <p/> * NOTE: Implementations may choose to reuse the Element returned for performance
-   * reasons, so if you need a copy of it, you should call {@link #getElement(int)} for the given index
-   *
-   * @return An {@link Iterator} over all elements
-   */
-  @Override
-  Iterator<Element> iterator();
+  Iterable<Element> all();
 
-  /**
-   * Iterates over all non-zero elements. <p/> NOTE: Implementations may choose to reuse the Element returned for
-   * performance reasons, so if you need a copy of it, you should call {@link #getElement(int)} for the given index
-   *
-   * @return An {@link Iterator} over all non-zero elements
-   */
-  Iterator<Element> iterateNonZero();
+  Iterable<Element> nonZeroes();
 
   /**
    * Return an object of Vector.Element representing an element of this Vector. Useful when designing new iterator
@@ -139,6 +125,12 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
    * @return The Vector.Element Object
    */
   Element getElement(int index);
+
+  /**
+   * Merge a set of (index, value) pairs into the vector.
+   * @param updates an ordered mapping of indices to values to be merged in.
+   */
+  void mergeUpdates(OrderedIntDoubleMapping updates);
 
   /**
    * A holder for information about a specific item in the Vector. <p/> When using with an Iterator, the implementation
@@ -390,9 +382,10 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
    * Example: dot(other) could be expressed as aggregate(other, Plus, Times), and kernelized inner products (which
    * are symmetric on the indices) work similarly.
    * @param other a vector to aggregate in combination with
-   * @param aggregator
-   * @param combiner
-   * @return the final aggregation
+   * @param aggregator function we're aggregating with; fa
+   * @param combiner function we're combining with; fc
+   * @return the final aggregation; if r0 = fc(this[0], other[0]), ri = fa(r_{i-1}, fc(this[i], other[i]))
+   * for all i > 0
    */
   double aggregate(Vector other, DoubleDoubleFunction aggregator, DoubleDoubleFunction combiner);
 
@@ -401,4 +394,20 @@ public interface Vector extends Cloneable, Iterable<Vector.Element> {
 
   /** Get the square of the distance between this vector and the other vector. */
   double getDistanceSquared(Vector v);
+
+  /**
+   * Gets an estimate of the cost (in number of operations) it takes to lookup a random element in this vector.
+   */
+  double getLookupCost();
+
+  /**
+   * Gets an estimate of the cost (in number of operations) it takes to advance an iterator through the nonzero
+   * elements of this vector.
+   */
+  double getIteratorAdvanceCost();
+
+  /**
+   * Return true iff adding a new (nonzero) element takes constant time for this vector.
+   */
+  boolean isAddConstantTime();
 }

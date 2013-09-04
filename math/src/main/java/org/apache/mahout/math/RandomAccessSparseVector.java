@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 
 import org.apache.mahout.math.map.OpenIntDoubleHashMap;
 import org.apache.mahout.math.map.OpenIntDoubleHashMap.MapElement;
+import org.apache.mahout.math.set.AbstractSet;
 
 
 /** Implements vector that only stores non-zero doubles */
@@ -47,9 +48,7 @@ public class RandomAccessSparseVector extends AbstractVector {
 
   public RandomAccessSparseVector(Vector other) {
     this(other.size(), other.getNumNondefaultElements());
-    Iterator<Element> it = other.iterateNonZero();
-    Element e;
-    while (it.hasNext() && (e = it.next()) != null) {
+    for (Element e : other.nonZeroes()) {
       values.put(e.index(), e.get());
     }
   }
@@ -101,12 +100,17 @@ public class RandomAccessSparseVector extends AbstractVector {
       throw new CardinalityException(size(), other.size());
     }
     values.clear();
-    Iterator<Element> it = other.iterateNonZero();
-    Element e;
-    while (it.hasNext() && (e = it.next()) != null) {
+    for (Element e : other.nonZeroes()) {
       setQuick(e.index(), e.get());
     }
     return this;
+  }
+
+  @Override
+  public void mergeUpdates(OrderedIntDoubleMapping updates) {
+    for (int i = 0; i < updates.getNumMappings(); ++i) {
+      values.put(updates.getIndices()[i], updates.getValues()[i]);
+    }
   }
 
   /**
@@ -156,6 +160,32 @@ public class RandomAccessSparseVector extends AbstractVector {
   public int getNumNondefaultElements() {
     return values.size();
   }
+
+  @Override
+  public double getLookupCost() {
+    return 1;
+  }
+
+  @Override
+  public double getIteratorAdvanceCost() {
+    return 1 + (AbstractSet.DEFAULT_MAX_LOAD_FACTOR + AbstractSet.DEFAULT_MIN_LOAD_FACTOR) / 2;
+  }
+
+  /**
+   * This is "sort of" constant, but really it might resize the array.
+   */
+  @Override
+  public boolean isAddConstantTime() {
+    return true;
+  }
+
+  /*
+  @Override
+  public Element getElement(int index) {
+    // TODO: this should return a MapElement so as to avoid hashing for both getQuick and setQuick.
+    return super.getElement(index);
+  }
+   */
 
   /**
    * NOTE: this implementation reuses the Vector.Element instance for each call of next(). If you need to preserve the
@@ -210,7 +240,7 @@ public class RandomAccessSparseVector extends AbstractVector {
 
     @Override
     public Element next() {
-      mapElement = iterator.next(); // This will throw an exception at the end of ennumeration.
+      mapElement = iterator.next(); // This will throw an exception at the end of enumeration.
       return element;
     }
 

@@ -37,6 +37,7 @@ import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileValueIterator;
 import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.RandomAccessSparseVector;
@@ -189,7 +190,7 @@ public final class TimesSquaredJob {
     try {
       return iterator.next().get();
     } finally {
-      Closeables.closeQuietly(iterator);
+      Closeables.close(iterator, true);
     }
   }
 
@@ -211,17 +212,18 @@ public final class TimesSquaredJob {
     @Override
     public void configure(JobConf conf) {
       try {
-        URI[] localFiles = DistributedCache.getCacheFiles(conf);
+        Path[] localFiles = DistributedCache.getLocalCacheFiles(conf);
         Preconditions.checkArgument(localFiles != null && localFiles.length >= 1,
                                     "missing paths from the DistributedCache");
-        Path inputVectorPath = new Path(localFiles[0].getPath());
+
+        Path inputVectorPath = HadoopUtil.getSingleCachedFile(conf);
 
         SequenceFileValueIterator<VectorWritable> iterator =
             new SequenceFileValueIterator<VectorWritable>(inputVectorPath, true, conf);
         try {
           inputVector = iterator.next().get();
         } finally {
-          Closeables.closeQuietly(iterator);
+          Closeables.close(iterator, true);
         }
 
         int outDim = conf.getInt(OUTPUT_VECTOR_DIMENSION, Integer.MAX_VALUE);

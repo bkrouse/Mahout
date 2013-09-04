@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import com.google.common.primitives.Doubles;
+import org.apache.mahout.math.function.Functions;
 
 /**
  * <p>
@@ -36,11 +37,6 @@ import com.google.common.primitives.Doubles;
  *   <li>dot(Vector)</li>
  *   <li>addTo(Vector)</li>
  * </ul>
- * <p>
- * Note that the Vector passed to these above methods may (and currently, are) be used in a random access fashion,
- * so for example, calling SequentialAccessSparseVector.dot(SequentialAccessSparseVector) is slow.
- * TODO: this need not be the case - both are ordered, so this should be very fast if implmented in this class
- * </p>
  *
  * See {@link OrderedIntDoubleMapping}
  */
@@ -67,9 +63,7 @@ public class SequentialAccessSparseVector extends AbstractVector {
     this(other.size(), other.getNumNondefaultElements());
 
     if (other.isSequentialAccess()) {
-      Iterator<Element> it = other.iterateNonZero();
-      Element e;
-      while (it.hasNext() && (e = it.next()) != null) {
+      for (Element e : other.nonZeroes()) {
         set(e.index(), e.get());
       }
     } else {
@@ -86,10 +80,8 @@ public class SequentialAccessSparseVector extends AbstractVector {
   private int copySortedRandomAccessSparseVector(Vector other) {
     int elementCount = other.getNumNondefaultElements();
     OrderedElement[] sortableElements = new OrderedElement[elementCount];
-    Iterator<Element> it = other.iterateNonZero();
-    Element e;
     int s = 0;
-    while (it.hasNext() && (e = it.next()) != null) {
+    for (Element e : other.nonZeroes()) {
       sortableElements[s++] = new OrderedElement(e.index(), e.get());
     }
     Arrays.sort(sortableElements);
@@ -121,28 +113,15 @@ public class SequentialAccessSparseVector extends AbstractVector {
     return new SparseRowMatrix(rows, columns);
   }
 
+  @SuppressWarnings("CloneDoesntCallSuperClone")
   @Override
   public SequentialAccessSparseVector clone() {
     return new SequentialAccessSparseVector(size(), values.clone());
   }
 
   @Override
-  public Vector assign(Vector other) {
-    int size = size();
-    if (size != other.size()) {
-      throw new CardinalityException(size, other.size());
-    }
-    if (other instanceof SequentialAccessSparseVector) {
-      values = ((SequentialAccessSparseVector)other).values.clone();
-    } else {
-      values = new OrderedIntDoubleMapping();
-      Iterator<Element> othersElems = other.iterateNonZero();
-      while (othersElems.hasNext()) {
-        Element elem = othersElems.next();
-        setQuick(elem.index(), elem.get());
-      }
-    }
-    return this;
+  public void mergeUpdates(OrderedIntDoubleMapping updates) {
+    values.merge(updates);
   }
 
   @Override
@@ -157,9 +136,7 @@ public class SequentialAccessSparseVector extends AbstractVector {
       result.append(e.get());
       result.append(',');
     }
-    if (result.length() > 1) {
-      result.setCharAt(result.length() - 1, '}');
-    }
+    result.append('}');
     return result.toString();
   }
 
@@ -179,11 +156,22 @@ public class SequentialAccessSparseVector extends AbstractVector {
     return true;
   }
 
+  /**
+   * Warning! This takes O(log n) time as it does a binary search behind the scenes!
+   * Only use it when STRICTLY necessary.
+   * @param index an int index.
+   * @return the value at that position in the vector.
+   */
   @Override
   public double getQuick(int index) {
     return values.get(index);
   }
 
+  /**
+   * Warning! This takes O(log n) time as it does a binary search behind the scenes!
+   * Only use it when STRICTLY necessary.
+   * @param index an int index.
+   */
   @Override
   public void setQuick(int index, double value) {
     invalidateCachedLength();
@@ -204,6 +192,21 @@ public class SequentialAccessSparseVector extends AbstractVector {
   @Override
   public int getNumNondefaultElements() {
     return values.getNumMappings();
+  }
+
+  @Override
+  public double getLookupCost() {
+    return Math.max(1, Math.round(Functions.LOG2.apply(getNumNondefaultElements())));
+  }
+
+  @Override
+  public double getIteratorAdvanceCost() {
+    return 1;
+  }
+
+  @Override
+  public boolean isAddConstantTime() {
+    return false;
   }
 
   @Override

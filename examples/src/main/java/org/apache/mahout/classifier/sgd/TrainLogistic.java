@@ -17,6 +17,19 @@
 
 package org.apache.mahout.classifier.sgd;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.util.List;
+import java.util.Locale;
+
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
@@ -31,19 +44,6 @@ import org.apache.commons.cli2.commandline.Parser;
 import org.apache.commons.cli2.util.HelpFormatter;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.Vector;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.util.List;
-import java.util.Locale;
 
 
 /**
@@ -106,7 +106,7 @@ public final class TrainLogistic {
             line = in.readLine();
           }
         } finally {
-          Closeables.closeQuietly(in);
+          Closeables.close(in, true);
         }
       }
 
@@ -114,7 +114,7 @@ public final class TrainLogistic {
       try {
         lmp.saveTo(modelOutput);
       } finally {
-        Closeables.closeQuietly(modelOutput);
+        Closeables.close(modelOutput, false);
       }
 
       output.println(lmp.getNumFeatures());

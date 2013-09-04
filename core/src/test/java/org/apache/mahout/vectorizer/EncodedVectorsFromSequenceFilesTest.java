@@ -17,12 +17,16 @@
 
 package org.apache.mahout.vectorizer;
 
+import java.util.List;
+
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.PathFilters;
@@ -33,9 +37,6 @@ import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.VectorWritable;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.LinkedList;
-import java.util.List;
 
 public class EncodedVectorsFromSequenceFilesTest extends MahoutTestCase {
 
@@ -48,7 +49,7 @@ public class EncodedVectorsFromSequenceFilesTest extends MahoutTestCase {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    conf = new Configuration();
+    conf = getConfiguration();
 
     inputPath = getTestTempFilePath("documents/docs.file");
     FileSystem fs = FileSystem.get(inputPath.toUri(), conf);
@@ -62,7 +63,7 @@ public class EncodedVectorsFromSequenceFilesTest extends MahoutTestCase {
         writer.append(new Text("Document::ID::" + i), new Text(gen.getRandomDocument()));
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
   }
   
@@ -91,7 +92,7 @@ public class EncodedVectorsFromSequenceFilesTest extends MahoutTestCase {
     Path tmpPath = getTestTempDirPath();
     Path outputPath = new Path(tmpPath, "output");
     
-    List<String> argList = new LinkedList<String>();
+    List<String> argList = Lists.newLinkedList();;
     argList.add("-i");
     argList.add(inputPath.toString());
     argList.add("-o");
@@ -107,7 +108,7 @@ public class EncodedVectorsFromSequenceFilesTest extends MahoutTestCase {
     
     String[] args = argList.toArray(new String[argList.size()]);
 
-    EncodedVectorsFromSequenceFiles.main(args);
+    ToolRunner.run(getConfiguration(), new EncodedVectorsFromSequenceFiles(), args);
 
     SequenceFileDirIterator<Text, VectorWritable> iter = new SequenceFileDirIterator<Text, VectorWritable>(outputPath, PathType.LIST, PathFilters.partFilter(), null, true, conf);
     int seen = 0;

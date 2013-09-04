@@ -56,7 +56,7 @@ public final class VectorTest extends MahoutTestCase {
     }
 
     int elements = 0;
-    for (Element ignore : vector) {
+    for (Element ignore : vector.all()) {
       elements++;
     }
     assertEquals(n, elements);
@@ -83,15 +83,13 @@ public final class VectorTest extends MahoutTestCase {
     }
 
     int elements = 0;
-    Iterator<Element> it = vector.iterateNonZero();
-    while (it.hasNext()) {
-      it.next();
+    for (Element ignored : vector.nonZeroes()) {
       elements++;
     }
     assertEquals(n, elements);
 
     Vector empty = new SequentialAccessSparseVector(0);
-    assertFalse(empty.iterateNonZero().hasNext());
+    assertFalse(empty.nonZeroes().iterator().hasNext());
   }
 
   @Test
@@ -276,9 +274,7 @@ public final class VectorTest extends MahoutTestCase {
     expected = lengthSquaredSlowly(v);
     assertEquals("mutation via setQuick() fails to change lengthSquared", expected, v.getLengthSquared(), EPSILON);
 
-    Iterator<Element> it = v.iterator();
-    while (it.hasNext()) {
-      Element e = it.next();
+    for (Element e : v.nonZeroes()) {
       if (e.index() == v.size() - 2) {
         e.set(e.get() - 5.0);
       }
@@ -287,11 +283,9 @@ public final class VectorTest extends MahoutTestCase {
     assertEquals("mutation via dense iterator.set fails to change lengthSquared",
                  expected, v.getLengthSquared(), EPSILON);
 
-    it = v.iterateNonZero();
     int i = 0;
-    while (it.hasNext()) {
+    for (Element e : v.nonZeroes()) {
       i++;
-      Element e = it.next();
       if (i == v.getNumNondefaultElements() - 1) {
         e.set(e.get() - 5.0);
       }
@@ -372,7 +366,7 @@ public final class VectorTest extends MahoutTestCase {
 
   private static void doTestIterators(Vector vector, Collection<Integer> expectedIndices) {
     expectedIndices = Sets.newHashSet(expectedIndices);
-    Iterator<Element> allIterator = vector.iterator();
+    Iterator<Element> allIterator = vector.all().iterator();
     int index = 0;
     while (allIterator.hasNext()) {
       Element element = allIterator.next();
@@ -385,9 +379,7 @@ public final class VectorTest extends MahoutTestCase {
       index++;
     }
 
-    Iterator<Element> nonZeroIterator = vector.iterateNonZero();
-    while (nonZeroIterator.hasNext()) {
-      Element element = nonZeroIterator.next();
+    for (Element element : vector.nonZeroes()) {
       index = element.index();
       assertTrue(expectedIndices.contains(index));
       assertEquals((double) index * 2, element.get(), EPSILON);
@@ -531,7 +523,7 @@ public final class VectorTest extends MahoutTestCase {
 
   private static void assertVectorEquals(Vector expected, Vector actual, double epsilon) {
     assertEquals(expected.size(), actual.size());
-    for (Element x : expected) {
+    for (Element x : expected.all()) {
       assertEquals(x.get(), actual.get(x.index()), epsilon);
     }
   }
@@ -706,9 +698,7 @@ public final class VectorTest extends MahoutTestCase {
   /** Asserts a vector using enumeration equals a given dense vector */
   private static void doTestEnumeration(double[] apriori, Vector vector) {
     double[] test = new double[apriori.length];
-    Iterator<Element> iter = vector.iterateNonZero();
-    while (iter.hasNext()) {
-      Element e = iter.next();
+    for (Element e : vector.all()) {
       test[e.index()] = e.get();
     }
 
@@ -784,18 +774,19 @@ public final class VectorTest extends MahoutTestCase {
         v.aggregate(w, Functions.PLUS, Functions.chain(Functions.pow(2), Functions.MINUS)), EPSILON);
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testEmptyAggregate1() {
     assertEquals(1.0, new DenseVector(new double[]{1}).aggregate(Functions.MIN, Functions.IDENTITY), EPSILON);
     assertEquals(1.0, new DenseVector(new double[]{2, 1}).aggregate(Functions.MIN, Functions.IDENTITY), EPSILON);
-    new DenseVector(new double[0]).aggregate(Functions.MIN, Functions.IDENTITY);
+    assertEquals(0, new DenseVector(new double[0]).aggregate(Functions.MIN, Functions.IDENTITY), 0);
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testEmptyAggregate2() {
     assertEquals(3.0, new DenseVector(new double[]{1}).aggregate(
-        new DenseVector(new double[]{2}),Functions.MIN, Functions.PLUS), EPSILON);
-    new DenseVector(new double[0]).aggregate(new DenseVector(new double[0]), Functions.MIN, Functions.PLUS);
+        new DenseVector(new double[]{2}), Functions.MIN, Functions.PLUS), EPSILON);
+    assertEquals(0,
+        new DenseVector(new double[0]).aggregate(new DenseVector(new double[0]), Functions.MIN, Functions.PLUS), 0);
   }
 
   private static void setUpFirstVector(Vector v) {
@@ -891,40 +882,6 @@ public final class VectorTest extends MahoutTestCase {
   }
 
   @Test
-  public void testMergeDiff() {
-    Vector left = new SequentialAccessSparseVector(20);
-    Vector right = new SequentialAccessSparseVector(20);
-
-    assertEquals(0, AbstractVector.mergeDiff(left, right), 0);
-
-    left.set(5, 1.5);
-    assertEquals(1.5 * 1.5, AbstractVector.mergeDiff(left, right), 0);
-
-    right.set(4, 3.1);
-    assertEquals(3.1 * 3.1 + 1.5 * 1.5, AbstractVector.mergeDiff(left, right), 0);
-
-    left.set(3, 1.2);
-    assertEquals(1.2 * 1.2 + 3.1 * 3.1 + 1.5 * 1.5, AbstractVector.mergeDiff(left, right), 0);
-
-    left.set(6, 2);
-    right.set(6, 2);
-    right.set(8, 2);
-    assertEquals(1.2 * 1.2 + 3.1 * 3.1 + 1.5 * 1.5 + 2 * 2, AbstractVector.mergeDiff(left, right), 0);
-  }
-
-  @Test
-  public void testRandomScanDiff() {
-    Vector left = new SequentialAccessSparseVector(20);
-    Vector right = new SequentialAccessSparseVector(20);
-    left.set(4, 1.1);
-    left.set(6, 2.1);
-    right.set(7, 3.1);
-    right.set(4, 1.2);
-
-    assertEquals(0.1 * 0.1 + 2.1 * 2.1 + 3.1 * 3.1, AbstractVector.randomScanDiff(left, right), 0);
-  }
-
-  @Test
   public void testIteratorRasv() {
     testIterator(new RandomAccessSparseVector(99));
     testEmptyAllIterator(new RandomAccessSparseVector(0));
@@ -945,27 +902,28 @@ public final class VectorTest extends MahoutTestCase {
     testExample1NonZeroIterator(new DenseVector(13));
   }
 
-  private void testIterator(Vector vector) {
+  private static void testIterator(Vector vector) {
     testSkips(vector.like());
     testSkipsLast(vector.like());
     testEmptyNonZeroIterator(vector.like());
     testSingleNonZeroIterator(vector.like());
   }
 
-  private void testSkips(Vector vector) {
+  private static void testSkips(Vector vector) {
     vector.set(0, 1);
     vector.set(2, 2);
     vector.set(4, 3);
     vector.set(6, 4);
 
     // Test non zero iterator.
-    Iterator<Element> it = vector.iterateNonZero();
+    Iterator<Element> it = vector.nonZeroes().iterator();
     Element element = null;
     int i = 0;
     while (it.hasNext()) {  // hasNext is called more often than next
       if (i % 2 == 0) {
         element = it.next();
       }
+      //noinspection ConstantConditions
       assertEquals(element.index(), 2* (i/2));
       assertEquals(element.get(), vector.get(2* (i/2)), 0);
       ++i;
@@ -973,13 +931,14 @@ public final class VectorTest extends MahoutTestCase {
     assertEquals(7, i);  // Last element is print only once.
 
     // Test all iterator.
-    it = vector.iterator();
+    it = vector.all().iterator();
     element = null;
     i = 0;
     while (it.hasNext()) { // hasNext is called more often than next
       if (i % 2 == 0) {
         element = it.next();
       }
+      //noinspection ConstantConditions
       assertEquals(element.index(), i/2);
       assertEquals(element.get(), vector.get(i/2), 0);
       ++i;
@@ -987,22 +946,22 @@ public final class VectorTest extends MahoutTestCase {
     assertEquals(197, i);  // Last element is print only once.
   }
 
-  private void testSkipsLast(Vector vector) {
+  private static void testSkipsLast(Vector vector) {
     vector.set(1, 6);
     vector.set(98, 6);
 
     // Test non zero iterator.
-    Iterator<Element> it = vector.iterateNonZero();
+    Iterator<Element> it = vector.nonZeroes().iterator();
 
     int i = 0;
     while (it.hasNext()) {  // hasNext is called more often than next
-      Element element = it.next();
+      it.next();
       ++i;
     }
     assertEquals(2, i);  // Last element is print only once.
 
     // Test all iterator.
-    it = vector.iterator();
+    it = vector.all().iterator();
     i = 0;
     while (it.hasNext()) { // hasNext is called more often than next
       Element element = it.next();
@@ -1014,16 +973,16 @@ public final class VectorTest extends MahoutTestCase {
   }
 
   // Test NonZeroIterator on an list with 0 elements
-  private void testEmptyNonZeroIterator(Vector vector) {
+  private static void testEmptyNonZeroIterator(Vector vector) {
     // Test non zero iterator.
-    Iterator<Element> it = vector.iterateNonZero();
+    Iterator<Element> it = vector.nonZeroes().iterator();
     int i = 0;
     while (it.hasNext()) {
       ++i;
     }
     assertEquals(0, i);
 
-    it = vector.iterateNonZero();
+    it = vector.nonZeroes().iterator();
     assertFalse(it.hasNext());
     try {
       it.next();
@@ -1034,16 +993,16 @@ public final class VectorTest extends MahoutTestCase {
   }
 
   // Test AllIterator on an list with 0 cardinality
-  private void testEmptyAllIterator(Vector vector) {
+  private static void testEmptyAllIterator(Vector vector) {
     // Test non zero iterator.
-    Iterator<Element> it = vector.iterator();
+    Iterator<Element> it = vector.all().iterator();
     int i = 0;
     while (it.hasNext()) {
       ++i;
     }
     assertEquals(0, i);
 
-    it = vector.iterateNonZero();
+    it = vector.nonZeroes().iterator();
     assertFalse(it.hasNext());
     try {
       it.next();
@@ -1052,7 +1011,7 @@ public final class VectorTest extends MahoutTestCase {
       // expected;
     }
 
-    it = vector.iterator();
+    it = vector.all().iterator();
     assertFalse(it.hasNext());
     try {
       it.next();
@@ -1063,15 +1022,15 @@ public final class VectorTest extends MahoutTestCase {
   }
 
   // Test NonZeroIterator on an list with 1 elements
-  private void testSingleNonZeroIterator(Vector vector) {
+  private static void testSingleNonZeroIterator(Vector vector) {
     vector.set(1, 6);
     // Test non zero iterator.
-    Iterator<Element> it = vector.iterateNonZero();
+    Iterator<Element> it = vector.nonZeroes().iterator();
     for (int i = 0; i < 10; ++i) {
       assertTrue(it.hasNext());
     }
 
-    it = vector.iterateNonZero();
+    it = vector.nonZeroes().iterator();
     it.next();
     for (int i = 0; i < 10; ++i) {
       assertFalse(it.hasNext());
@@ -1085,8 +1044,8 @@ public final class VectorTest extends MahoutTestCase {
   }
 
   // Test NonZeroIterator on double[] { 0, 2, 0, 0, 8, 3, 0, 6, 0, 1, 1, 2, 1 }
-  private void testExample1NonZeroIterator(Vector vector) {
-    double[] val = new double[] { 0, 2, 0, 0, 8, 3, 0, 6, 0, 1, 1, 2, 1 };
+  private static void testExample1NonZeroIterator(Vector vector) {
+    double[] val = { 0, 2, 0, 0, 8, 3, 0, 6, 0, 1, 1, 2, 1 };
     for (int i = 0; i < val.length; ++i) {
       vector.set(i, val[i]);
     }
@@ -1094,7 +1053,7 @@ public final class VectorTest extends MahoutTestCase {
     Set<Integer> expected = Sets.newHashSet(1, 4, 5, 7, 9, 10, 11, 12);
     Set<Double> expectedValue = Sets.newHashSet(2.0, 8.0, 3.0, 6.0, 1.0);
     // Test non zero iterator.
-    Iterator<Element> it = vector.iterateNonZero();
+    Iterator<Element> it = vector.nonZeroes().iterator();
     int i = 0;
     while (it.hasNext()) {
       Element e = it.next();
@@ -1108,7 +1067,7 @@ public final class VectorTest extends MahoutTestCase {
     assertEquals(8, vector.getNumNonZeroElements());
 
     // Set one element to 0.
-    it = vector.iterateNonZero();
+    it = vector.nonZeroes().iterator();
     i = 0;
     while (it.hasNext()) {
       Element e = it.next();
@@ -1121,7 +1080,7 @@ public final class VectorTest extends MahoutTestCase {
     assertEquals(7, vector.getNumNonZeroElements());
 
     // Remove one element
-    it = vector.iterateNonZero();
+    it = vector.nonZeroes().iterator();
     i = 0;
     while (it.hasNext()) {
       Element e = it.next();

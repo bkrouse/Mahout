@@ -24,6 +24,8 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.util.Version;
 import org.apache.mahout.common.lucene.TokenStreamIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -33,8 +35,10 @@ public class AnalyzerTransformer implements RegexTransformer {
   private Analyzer analyzer;
   private String fieldName = "text";
 
+  private static final Logger log = LoggerFactory.getLogger(AnalyzerTransformer.class);
+
   public AnalyzerTransformer() {
-    this(new StandardAnalyzer(Version.LUCENE_42), "text");
+    this(new StandardAnalyzer(Version.LUCENE_43), "text");
   }
 
   public AnalyzerTransformer(Analyzer analyzer) {
@@ -62,7 +66,11 @@ public class AnalyzerTransformer implements RegexTransformer {
     } catch (IOException e) {
       throw new IllegalStateException(e);
     } finally {
-      Closeables.closeQuietly(ts);
+      try {
+        Closeables.close(ts, true);
+      } catch (IOException e) {
+        log.error(e.getMessage(), e);
+      }
     }
     return result.toString();
   }

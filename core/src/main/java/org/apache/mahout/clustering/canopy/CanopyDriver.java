@@ -154,7 +154,7 @@ public class CanopyDriver extends AbstractJob {
     Path clustersOut = buildClusters(conf, input, output, measure, t1, t2, t3,
         t4, clusterFilter, runSequential);
     if (runClustering) {
-      clusterData(input, clustersOut, output, clusterClassificationThreshold, runSequential);
+      clusterData(conf, input, clustersOut, output, clusterClassificationThreshold, runSequential);
     }
   }
 
@@ -283,8 +283,8 @@ public class CanopyDriver extends AbstractJob {
     Path path = new Path(canopyOutputDir, "part-r-00000");
     SequenceFile.Writer writer = new SequenceFile.Writer(fs, conf, path,
         Text.class, ClusterWritable.class);
-    ClusterWritable clusterWritable = new ClusterWritable();
     try {
+      ClusterWritable clusterWritable = new ClusterWritable();
       for (Canopy canopy : canopies) {
         canopy.computeParameters();
         if (log.isDebugEnabled()) {
@@ -300,7 +300,7 @@ public class CanopyDriver extends AbstractJob {
         }
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
     return canopyOutputDir;
   }
@@ -363,16 +363,15 @@ public class CanopyDriver extends AbstractJob {
     return canopyOutputDir;
   }
 
-  private static void clusterData(Path points,
+  private static void clusterData(Configuration conf,
+                                  Path points,
                                   Path canopies,
                                   Path output,
                                   double clusterClassificationThreshold,
                                   boolean runSequential)
     throws IOException, InterruptedException, ClassNotFoundException {
     ClusterClassifier.writePolicy(new CanopyClusteringPolicy(), canopies);
-    ClusterClassificationDriver.run(points,
-                                    output,
-                                    new Path(output, PathDirectory.CLUSTERED_POINTS_DIRECTORY),
+    ClusterClassificationDriver.run(conf, points, output, new Path(output, PathDirectory.CLUSTERED_POINTS_DIRECTORY),
                                     clusterClassificationThreshold, true, runSequential);
   }
 

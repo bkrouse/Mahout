@@ -29,5 +29,4 @@ public final class TestSparseMatrix extends MatrixTest {
     }
     return matrix;
   }
-
 }

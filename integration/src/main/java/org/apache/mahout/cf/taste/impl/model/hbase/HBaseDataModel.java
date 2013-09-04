@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -32,7 +31,6 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.TableExistsException;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
@@ -143,8 +141,6 @@ public final class HBaseDataModel implements DataModel, Closeable {
     try {
       admin.createTable(tDesc);
       log.info("Created table {}", tableName);
-    } catch (TableExistsException e) {
-      log.info("Table {} alreay exists", tableName);
     } finally {
       admin.close();
     }
@@ -461,7 +457,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
     Scan scan = new Scan(new byte[]{0x69}, new byte[]{0x70});
     scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ALL, new KeyOnlyFilter(), new FirstKeyOnlyFilter()));
     ResultScanner scanner = table.getScanner(scan);
-    Collection<Long> ids = new LinkedList<Long>();
+    Collection<Long> ids = Lists.newLinkedList();
     for (Result result : scanner) {
       ids.add(bytesToUserOrItemID(result.getRow()));
     }
@@ -486,7 +482,7 @@ public final class HBaseDataModel implements DataModel, Closeable {
     Scan scan = new Scan(new byte[]{0x75}, new byte[]{0x76});
     scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ALL, new KeyOnlyFilter(), new FirstKeyOnlyFilter()));
     ResultScanner scanner = table.getScanner(scan);
-    Collection<Long> ids = new LinkedList<Long>();
+    Collection<Long> ids = Lists.newLinkedList();
     for (Result result : scanner) {
       ids.add(bytesToUserOrItemID(result.getRow()));
     }

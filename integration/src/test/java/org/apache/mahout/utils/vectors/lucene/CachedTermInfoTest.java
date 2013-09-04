@@ -1,6 +1,8 @@
 package org.apache.mahout.utils.vectors.lucene;
 
 
+import java.io.IOException;
+
 import com.google.common.io.Closeables;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
@@ -14,8 +16,6 @@ import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
 import org.apache.mahout.utils.MahoutTestCase;
 import org.junit.Test;
-
-import java.io.IOException;
 
 /**
  *
@@ -76,7 +76,7 @@ public class CachedTermInfoTest extends MahoutTestCase {
                                       RAMDirectory directory,
                                       boolean createNew,
                                       int startingId) throws IOException {
-    IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(Version.LUCENE_42, new WhitespaceAnalyzer(Version.LUCENE_42)));
+    IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(Version.LUCENE_43, new WhitespaceAnalyzer(Version.LUCENE_43)));
 
     try {
       for (int i = 0; i < DOCS.length; i++) {
@@ -92,7 +92,7 @@ public class CachedTermInfoTest extends MahoutTestCase {
         writer.addDocument(doc);
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
     return directory;
   }

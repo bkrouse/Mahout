@@ -17,6 +17,10 @@
 
 package org.apache.mahout.math.hadoop.decomposer;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -39,16 +43,13 @@ import org.apache.mahout.math.hadoop.DistributedRowMatrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
 /**
  * See the SSVD code for a better option than using this:
  *
  * https://cwiki.apache.org/confluence/display/MAHOUT/Stochastic+Singular+Value+Decomposition
  * @see org.apache.mahout.math.hadoop.stochasticsvd.SSVDSolver
  */
+@Deprecated
 public class DistributedLanczosSolver extends LanczosSolver implements Tool {
 
   public static final String RAW_EIGENVECTORS = "rawEigenvectors";
@@ -233,7 +234,7 @@ public class DistributedLanczosSolver extends LanczosSolver implements Tool {
         seqWriter.append(iw, vw);
       }
     } finally {
-      Closeables.closeQuietly(seqWriter);
+      Closeables.close(seqWriter, false);
     }
   }
 

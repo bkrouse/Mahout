@@ -17,18 +17,17 @@
 
 package org.apache.mahout.cf.taste.example.email;
 
-import com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterable;
 import org.apache.mahout.math.map.OpenObjectIntHashMap;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.regex.Pattern;
 
 public final class EmailUtility {
@@ -63,11 +62,10 @@ public final class EmailUtility {
                                       String msgIdPrefix,
                                       OpenObjectIntHashMap<String> msgIdDictionary) throws IOException {
 
-    URI[] localFiles = DistributedCache.getCacheFiles(conf);
-    Preconditions.checkArgument(localFiles != null,
-            "missing paths from the DistributedCache");
-    for (URI localFile : localFiles) {
-      Path dictionaryFile = new Path(localFile.getPath());
+    Path[] localFiles = HadoopUtil.getCachedFiles(conf);
+    FileSystem fs = FileSystem.getLocal(conf);
+    for (Path dictionaryFile : localFiles) {
+
       // key is word value is id
 
       OpenObjectIntHashMap<String> dictionary = null;
@@ -77,6 +75,7 @@ public final class EmailUtility {
         dictionary = msgIdDictionary;
       }
       if (dictionary != null) {
+        dictionaryFile = fs.makeQualified(dictionaryFile);
         for (Pair<Writable, IntWritable> record
             : new SequenceFileIterable<Writable, IntWritable>(dictionaryFile, true, conf)) {
           dictionary.put(record.getFirst().toString(), record.getSecond().get());

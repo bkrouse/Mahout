@@ -91,14 +91,6 @@ public class InMemoryCollapsedVariationalBayes0 extends AbstractJob {
   public void setVerbose(boolean verbose) {
     this.verbose = verbose;
   }
-
-  public InMemoryCollapsedVariationalBayes0(Matrix corpus,
-                                            String[] terms,
-                                            int numTopics,
-                                            double alpha,
-                                            double eta) {
-    this(corpus, terms, numTopics, alpha, eta, 1, 1, 0);
-  }
     
   public InMemoryCollapsedVariationalBayes0(Matrix corpus,
                                             String[] terms,
@@ -262,7 +254,7 @@ public class InMemoryCollapsedVariationalBayes0 extends AbstractJob {
   }
 
   private static void logTime(String label, long nanos) {
-    log.info("{} time: {}ms", label, (double) nanos / 1.0e6);
+    log.info("{} time: {}ms", label, nanos / 1.0e6);
   }
 
   public static int main2(String[] args, Configuration conf) throws Exception {
@@ -468,9 +460,6 @@ public class InMemoryCollapsedVariationalBayes0 extends AbstractJob {
 
   @Override
   public Configuration getConf() {
-    if (super.getConf() == null) {
-      setConf(new Configuration());
-    }
     return super.getConf();
   }
 

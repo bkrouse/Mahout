@@ -21,9 +21,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.apache.mahout.math.function.DoubleDoubleFunction;
-import org.apache.mahout.math.function.PlusMult;
-
 import com.google.common.base.Preconditions;
 
 /** Implements vector as an array of doubles */
@@ -63,9 +60,7 @@ public class DenseVector extends AbstractVector {
   public DenseVector(Vector vector) {
     super(vector.size());
     values = new double[vector.size()];
-    Iterator<Element> it = vector.iterateNonZero();
-    while (it.hasNext()) {
-      Element e = it.next();
+    for (Element e : vector.nonZeroes()) {
       values[e.index()] = e.get();
     }
   }
@@ -94,6 +89,7 @@ public class DenseVector extends AbstractVector {
     return new DenseMatrix(rows, columns);
   }
 
+  @SuppressWarnings("CloneDoesntCallSuperClone")
   @Override
   public DenseVector clone() {
     return new DenseVector(values.clone());
@@ -159,27 +155,6 @@ public class DenseVector extends AbstractVector {
     return values.length;
   }
 
-  @Override
-  public Vector assign(Vector other, DoubleDoubleFunction function) {
-    if (size() != other.size()) {
-      throw new CardinalityException(size(), other.size());
-    }
-    // is there some other way to know if function.apply(0, x) = x for all x?
-    if (function instanceof PlusMult) {
-      Iterator<Element> it = other.iterateNonZero();
-      Element e;
-      while (it.hasNext() && (e = it.next()) != null) {
-        values[e.index()] = function.apply(values[e.index()], e.get());
-      }
-    } else {
-      for (int i = 0; i < size(); i++) {
-        values[i] = function.apply(values[i], other.getQuick(i));
-      }
-    }
-    invalidateCachedLength();
-    return this;
-  }
-
   public Vector assign(DenseVector vector) {
     // make sure the data field has the correct length
     if (vector.values.length != this.values.length) {
@@ -191,6 +166,16 @@ public class DenseVector extends AbstractVector {
   }
 
   @Override
+  public void mergeUpdates(OrderedIntDoubleMapping updates) {
+    int numUpdates = updates.getNumMappings();
+    int[] indices = updates.getIndices();
+    double[] values = updates.getValues();
+    for (int i = 0; i < numUpdates; ++i) {
+      this.values[indices[i]] = values[i];
+    }
+  }
+
+  @Override
   public Vector viewPart(int offset, int length) {
     if (offset < 0) {
       throw new IndexException(offset, size());
@@ -199,6 +184,21 @@ public class DenseVector extends AbstractVector {
       throw new IndexException(offset + length, size());
     }
     return new VectorView(this, offset, length);
+  }
+
+  @Override
+  public double getLookupCost() {
+    return 1;
+  }
+
+  @Override
+  public double getIteratorAdvanceCost() {
+    return 1;
+  }
+
+  @Override
+  public boolean isAddConstantTime() {
+    return true;
   }
 
   /**
@@ -228,9 +228,7 @@ public class DenseVector extends AbstractVector {
       throw new CardinalityException(size(), v.size());
     }
 
-    Iterator<Element> iter = v.iterateNonZero();
-    while (iter.hasNext()) {
-      Element element = iter.next();
+    for (Element element : v.nonZeroes()) {
       values[element.index()] += element.get();
     }
   }

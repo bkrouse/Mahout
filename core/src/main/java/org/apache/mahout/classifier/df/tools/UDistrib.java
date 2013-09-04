@@ -17,6 +17,12 @@
 
 package org.apache.mahout.classifier.df.tools;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Locale;
+import java.util.Random;
+import java.util.Scanner;
+
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closeables;
 import org.apache.commons.cli2.CommandLine;
@@ -41,12 +47,6 @@ import org.apache.mahout.common.RandomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Locale;
-import java.util.Random;
-import java.util.Scanner;
-
 /**
  * This tool is used to uniformly distribute the class of all the tuples of the dataset over a given number of
  * partitions.<br>
@@ -56,8 +56,7 @@ public final class UDistrib {
   
   private static final Logger log = LoggerFactory.getLogger(UDistrib.class);
   
-  private UDistrib() {
-  }
+  private UDistrib() {}
   
   /**
    * Launch the uniform distribution tool. Requires the following command line arguments:<br>
@@ -115,12 +114,12 @@ public final class UDistrib {
   }
   
   private static void runTool(String dataStr, String datasetStr, String output, int numPartitions) throws IOException {
-    Configuration conf = new Configuration();
 
     Preconditions.checkArgument(numPartitions > 0, "numPartitions <= 0");
     
     // make sure the output file does not exist
     Path outputPath = new Path(output);
+    Configuration conf = new Configuration();
     FileSystem fs = outputPath.getFileSystem(conf);
 
     Preconditions.checkArgument(!fs.exists(outputPath), "Output path already exists");
@@ -161,12 +160,11 @@ public final class UDistrib {
     FSDataInputStream input = ifs.open(dataPath);
     Scanner scanner = new Scanner(input, "UTF-8");
     DataConverter converter = new DataConverter(dataset);
-    int nbInstances = dataset.nbInstances();
     
     int id = 0;
     while (scanner.hasNextLine()) {
       if (id % 1000 == 0) {
-        log.info("progress : {} / {}", id, nbInstances);
+        log.info("progress : {}", id);
       }
       
       String line = scanner.nextLine();
@@ -190,7 +188,7 @@ public final class UDistrib {
     // close all the files.
     scanner.close();
     for (FSDataOutputStream file : files) {
-      Closeables.closeQuietly(file);
+      Closeables.close(file, false);
     }
     
     // merge all output files

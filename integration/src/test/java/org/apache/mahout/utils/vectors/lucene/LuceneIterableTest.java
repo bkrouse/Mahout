@@ -17,9 +17,10 @@
 
 package org.apache.mahout.utils.vectors.lucene;
 
-import com.google.common.io.Closeables;
 import java.io.IOException;
 import java.util.Iterator;
+
+import com.google.common.io.Closeables;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -163,7 +164,7 @@ public final class LuceneIterableTest extends MahoutTestCase {
                                               RAMDirectory directory,
                                               boolean createNew,
                                               int startingId) throws IOException {
-    IndexWriter writer = new IndexWriter( directory, new IndexWriterConfig(Version.LUCENE_42,new StandardAnalyzer(Version.LUCENE_42)));
+    IndexWriter writer = new IndexWriter( directory, new IndexWriterConfig(Version.LUCENE_43,new StandardAnalyzer(Version.LUCENE_43)));
         
     try {
       for (int i = 0; i < DOCS.length; i++) {
@@ -179,7 +180,7 @@ public final class LuceneIterableTest extends MahoutTestCase {
         writer.addDocument(doc);
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
     return directory;
   }

@@ -18,6 +18,9 @@
 package org.apache.mahout.math.decomposer.lanczos;
 
 
+import java.util.EnumMap;
+import java.util.Map;
+
 import com.google.common.base.Preconditions;
 import org.apache.mahout.math.Matrix;
 import org.apache.mahout.math.Vector;
@@ -27,9 +30,6 @@ import org.apache.mahout.math.function.PlusMult;
 import org.apache.mahout.math.solver.EigenDecomposition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.EnumMap;
-import java.util.Map;
 
 /**
  * <p>Simple implementation of the <a href="http://en.wikipedia.org/wiki/Lanczos_algorithm">Lanczos algorithm</a> for
@@ -76,7 +76,7 @@ public class LanczosSolver {
   private final Map<TimingSection, Long> startTimes = new EnumMap<TimingSection, Long>(TimingSection.class);
   private final Map<TimingSection, Long> times = new EnumMap<TimingSection, Long>(TimingSection.class);
 
-  private static final class Scale implements DoubleFunction {
+  private static final class Scale extends DoubleFunction {
     private final double d;
 
     private Scale(double d) {
@@ -154,8 +154,8 @@ public class LanczosSolver {
     startTime(TimingSection.FINAL_EIGEN_CREATE);
     for (int row = 0; row < i; row++) {
       Vector realEigen = null;
-      // the eigenvectors live as columns of V, in reverse order.  Weird but true.
-      Vector ejCol = eigenVects.viewColumn(i - row - 1);
+
+      Vector ejCol = eigenVects.viewColumn(row);
       int size = Math.min(ejCol.size(), state.getBasisSize());
       for (int j = 0; j < size; j++) {
         double d = ejCol.get(j);

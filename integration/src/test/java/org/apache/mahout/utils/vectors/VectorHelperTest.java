@@ -17,6 +17,7 @@
 
 package org.apache.mahout.utils.vectors;
 
+import com.google.common.collect.Iterables;
 import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.utils.MahoutTestCase;
@@ -51,4 +52,36 @@ public final class VectorHelperTest extends MahoutTestCase {
         VectorHelper.vectorToJson(v, dictionary, 2, false));
   }
 
+  @Test
+  public void testTopEntries() throws Exception {
+    Vector v = new SequentialAccessSparseVector(10);
+    v.set(2, 3.1);
+    v.set(4, 1.0);
+    v.set(6, 8.1);
+    v.set(7, -100);
+    v.set(9, 12.2);
+    v.set(1, 0.0);
+    v.set(3, 0.0);
+    v.set(8, 2.7);
+    // check if sizeOFNonZeroElementsInVector = maxEntries
+    assertEquals(6, VectorHelper.topEntries(v, 6).size());
+    // check if sizeOfNonZeroElementsInVector < maxEntries
+    assertTrue(VectorHelper.topEntries(v, 9).size() < 9);
+    // check if sizeOfNonZeroElementsInVector > maxEntries
+    assertTrue(VectorHelper.topEntries(v, 5).size() < Iterables.size(v.nonZeroes()));
+  }
+
+  @Test
+  public void testTopEntriesWhenAllZeros() throws Exception {
+    Vector v = new SequentialAccessSparseVector(10);
+    v.set(2, 0.0);
+    v.set(4, 0.0);
+    v.set(6, 0.0);
+    v.set(7, 0);
+    v.set(9, 0.0);
+    v.set(1, 0.0);
+    v.set(3, 0.0);
+    v.set(8, 0.0);
+    assertEquals(0, VectorHelper.topEntries(v, 6).size());
+  }
 }

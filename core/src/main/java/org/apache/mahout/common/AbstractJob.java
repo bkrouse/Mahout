@@ -19,7 +19,6 @@ package org.apache.mahout.common;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -114,7 +113,7 @@ public abstract class AbstractJob extends Configured implements Tool {
   private Group group;
 
   protected AbstractJob() {
-    options = new LinkedList<Option>();
+    options = Lists.newLinkedList();
   }
 
   /** Returns the input path established by a call to {@link #parseArguments(String[])}.
@@ -155,9 +154,14 @@ public abstract class AbstractJob extends Configured implements Tool {
   protected Path getTempPath(String directory) {
     return new Path(tempPath, directory);
   }
-
-  protected Path getCombinedTempPath(String directory1, String directory2) {
-    return new Path(new Path(tempPath, directory1) + "," + new Path(tempPath, directory2));
+  
+  @Override
+  public Configuration getConf() {
+    Configuration result = super.getConf();
+    if (result == null) {
+      return new Configuration();
+    }
+    return result;
   }
 
   /** Add an option with no argument whose presence can be checked for using
@@ -406,6 +410,22 @@ public abstract class AbstractJob extends Configured implements Tool {
     return res;
   }
 
+  public int getInt(String optionName) {
+    return Integer.parseInt(getOption(optionName));
+  }
+
+  public int getInt(String optionName, int defaultVal) {
+    return Integer.parseInt(getOption(optionName, String.valueOf(defaultVal)));
+  }
+
+  public float getFloat(String optionName) {
+    return Float.parseFloat(getOption(optionName));
+  }
+
+  public float getFloat(String optionName, float defaultVal) {
+    return Float.parseFloat(getOption(optionName, String.valueOf(defaultVal)));
+  }
+
   /**
    * Options can occur multiple times, so return the list
    * @param optionName The unadorned (no "--" prefixing it) option name
@@ -438,18 +458,17 @@ public abstract class AbstractJob extends Configured implements Tool {
 
       Writable row = ClassUtils.instantiateAs(reader.getKeyClass().asSubclass(Writable.class), Writable.class);
 
-      VectorWritable vectorWritable = new VectorWritable();
-
       Preconditions.checkArgument(reader.getValueClass().equals(VectorWritable.class),
           "value type of sequencefile must be a VectorWritable");
 
+      VectorWritable vectorWritable = new VectorWritable();
       boolean hasAtLeastOneRow = reader.next(row, vectorWritable);
       Preconditions.checkState(hasAtLeastOneRow, "matrix must have at least one row");
 
       return vectorWritable.get().size();
 
     } finally {
-      Closeables.closeQuietly(reader);
+      Closeables.close(reader, true);
     }
   }
 
@@ -615,7 +634,6 @@ public abstract class AbstractJob extends Configured implements Tool {
       // you can't instantiate it
       //ClassUtils.instantiateAs(analyzerClass, Analyzer.class);
       AnalyzerUtils.createAnalyzer(analyzerClass);
-
     }
     return analyzerClass;
   }
@@ -634,7 +652,7 @@ public abstract class AbstractJob extends Configured implements Tool {
     String oozieActionConfXml = System.getProperty("oozie.action.conf.xml");
     if (oozieActionConfXml != null && conf != null) {
       conf.addResource(new Path("file:///", oozieActionConfXml));
-      log.info("Added Oozie action Configuration resource {0} to the Hadoop Configuration", oozieActionConfXml);
+      log.info("Added Oozie action Configuration resource {} to the Hadoop Configuration", oozieActionConfXml);
     }      
   }
 }

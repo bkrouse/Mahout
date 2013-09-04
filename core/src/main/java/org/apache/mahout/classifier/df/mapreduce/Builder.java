@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -200,13 +199,13 @@ public abstract class Builder {
    *           if no path is found
    */
   public static Path getDistributedCacheFile(Configuration conf, int index) throws IOException {
-    URI[] files = DistributedCache.getCacheFiles(conf);
+    Path[] files = HadoopUtil.getCachedFiles(conf);
     
-    if (files == null || files.length <= index) {
+    if (files.length <= index) {
       throw new IOException("path not found in the DistributedCache");
     }
     
-    return new Path(files[index].getPath());
+    return files[index];
   }
   
   /**

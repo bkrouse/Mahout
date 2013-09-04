@@ -116,14 +116,12 @@ public final class MatrixColumnMeansJob {
                                .newInstance(0);
         }
       } finally {
-        Closeables.closeQuietly(iterator);
+        Closeables.close(iterator, true);
       }
+    } catch (IOException ioe) {
+      throw ioe;
     } catch (Throwable thr) {
-      if (thr instanceof IOException) {
-        throw (IOException) thr;
-      } else {
-        throw new IOException(thr);
-      }
+      throw new IOException(thr);
     }
   }
 
@@ -192,8 +190,8 @@ public final class MatrixColumnMeansJob {
     private static final IntWritable ONE = new IntWritable(1);
 
     private String vectorClass;
-    Vector outputVector;
-    VectorWritable outputVectorWritable = new VectorWritable();
+    private Vector outputVector;
+    private final VectorWritable outputVectorWritable = new VectorWritable();
 
     @Override
     public void setup(Context context) {

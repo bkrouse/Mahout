@@ -18,17 +18,15 @@
 package org.apache.mahout.vectorizer.tfidf;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Iterator;
 
-import com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterable;
 import org.apache.mahout.math.NamedVector;
@@ -70,10 +68,8 @@ public class TFIDFPartialVectorReducer extends
       return;
     }
     Vector value = it.next().get();
-    Iterator<Vector.Element> it1 = value.iterateNonZero();
     Vector vector = new RandomAccessSparseVector((int) featureCount, value.getNumNondefaultElements());
-    while (it1.hasNext()) {
-      Vector.Element e = it1.next();
+    for (Vector.Element e : value.nonZeroes()) {
       if (!dictionary.containsKey(e.index())) {
         continue;
       }
@@ -102,9 +98,6 @@ public class TFIDFPartialVectorReducer extends
   protected void setup(Context context) throws IOException, InterruptedException {
     super.setup(context);
     Configuration conf = context.getConfiguration();
-    URI[] localFiles = DistributedCache.getCacheFiles(conf);
-    Preconditions.checkArgument(localFiles != null && localFiles.length >= 1, 
-        "missing paths from the DistributedCache");
 
     vectorCount = conf.getLong(TFIDFConverter.VECTOR_COUNT, 1);
     featureCount = conf.getLong(TFIDFConverter.FEATURE_COUNT, 1);
@@ -113,7 +106,7 @@ public class TFIDFPartialVectorReducer extends
     sequentialAccess = conf.getBoolean(PartialVectorMerger.SEQUENTIAL_ACCESS, false);
     namedVector = conf.getBoolean(PartialVectorMerger.NAMED_VECTOR, false);
 
-    Path dictionaryFile = new Path(localFiles[0].getPath());
+    Path dictionaryFile = HadoopUtil.getSingleCachedFile(conf);
     // key is feature, value is the document frequency
     for (Pair<IntWritable,LongWritable> record 
          : new SequenceFileIterable<IntWritable,LongWritable>(dictionaryFile, true, conf)) {

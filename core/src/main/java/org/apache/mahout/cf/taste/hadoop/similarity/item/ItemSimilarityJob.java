@@ -18,7 +18,6 @@
 package org.apache.mahout.cf.taste.hadoop.similarity.item;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -87,7 +86,7 @@ public final class ItemSimilarityJob extends AbstractJob {
   public static final String MAX_SIMILARITIES_PER_ITEM = ItemSimilarityJob.class.getName() + ".maxSimilarItemsPerItem";
 
   private static final int DEFAULT_MAX_SIMILAR_ITEMS_PER_ITEM = 100;
-  private static final int DEFAULT_MAX_PREFS_PER_USER = 1000;
+  private static final int DEFAULT_MAX_PREFS = 500;
   private static final int DEFAULT_MIN_PREFS_PER_USER = 1;
 
   public static void main(String[] args) throws Exception {
@@ -104,13 +103,14 @@ public final class ItemSimilarityJob extends AbstractJob {
     addOption("maxSimilaritiesPerItem", "m", "try to cap the number of similar items per item to this number "
         + "(default: " + DEFAULT_MAX_SIMILAR_ITEMS_PER_ITEM + ')',
         String.valueOf(DEFAULT_MAX_SIMILAR_ITEMS_PER_ITEM));
-    addOption("maxPrefsPerUser", "mppu", "max number of preferences to consider per user, " 
-        + "users with more preferences will be sampled down (default: " + DEFAULT_MAX_PREFS_PER_USER + ')',
-        String.valueOf(DEFAULT_MAX_PREFS_PER_USER));
+    addOption("maxPrefs", "mppu", "max number of preferences to consider per user or item, " 
+        + "users or items with more preferences will be sampled down (default: " + DEFAULT_MAX_PREFS + ')',
+        String.valueOf(DEFAULT_MAX_PREFS));
     addOption("minPrefsPerUser", "mp", "ignore users with less preferences than this "
         + "(default: " + DEFAULT_MIN_PREFS_PER_USER + ')', String.valueOf(DEFAULT_MIN_PREFS_PER_USER));
     addOption("booleanData", "b", "Treat input as without pref values", String.valueOf(Boolean.FALSE));
     addOption("threshold", "tr", "discard item pairs with a similarity value below this", false);
+    addOption("randomSeed", null, "use this seed for sampling", false);
 
     Map<String,List<String>> parsedArgs = parseArguments(args);
     if (parsedArgs == null) {
@@ -119,12 +119,14 @@ public final class ItemSimilarityJob extends AbstractJob {
 
     String similarityClassName = getOption("similarityClassname");
     int maxSimilarItemsPerItem = Integer.parseInt(getOption("maxSimilaritiesPerItem"));
-    int maxPrefsPerUser = Integer.parseInt(getOption("maxPrefsPerUser"));
+    int maxPrefs = Integer.parseInt(getOption("maxPrefs"));
     int minPrefsPerUser = Integer.parseInt(getOption("minPrefsPerUser"));
     boolean booleanData = Boolean.valueOf(getOption("booleanData"));
 
     double threshold = hasOption("threshold")
         ? Double.parseDouble(getOption("threshold")) : RowSimilarityJob.NO_THRESHOLD;
+    long randomSeed = hasOption("randomSeed")
+        ? Long.parseLong(getOption("randomSeed")) : RowSimilarityJob.NO_FIXED_RANDOM_SEED;
 
     Path similarityMatrixPath = getTempPath("similarityMatrix");
     Path prepPath = getTempPath("prepareRatingMatrix");
@@ -135,7 +137,6 @@ public final class ItemSimilarityJob extends AbstractJob {
       ToolRunner.run(getConf(), new PreparePreferenceMatrixJob(), new String[] {
         "--input", getInputPath().toString(),
         "--output", prepPath.toString(),
-        "--maxPrefsPerUser", String.valueOf(maxPrefsPerUser),
         "--minPrefsPerUser", String.valueOf(minPrefsPerUser),
         "--booleanData", String.valueOf(booleanData),
         "--tempDir", getTempPath().toString(),
@@ -143,17 +144,19 @@ public final class ItemSimilarityJob extends AbstractJob {
     }
 
     if (shouldRunNextPhase(parsedArgs, currentPhase)) {
-      int numberOfUsers = HadoopUtil.readInt(new Path(prepPath, PreparePreferenceMatrixJob.NUM_USERS),
-          getConf());
+      int numberOfUsers = HadoopUtil.readInt(new Path(prepPath, PreparePreferenceMatrixJob.NUM_USERS), getConf());
 
       ToolRunner.run(getConf(), new RowSimilarityJob(), new String[] {
         "--input", new Path(prepPath, PreparePreferenceMatrixJob.RATING_MATRIX).toString(),
         "--output", similarityMatrixPath.toString(),
         "--numberOfColumns", String.valueOf(numberOfUsers),
         "--similarityClassname", similarityClassName,
+        "--maxObservationsPerRow", String.valueOf(maxPrefs),
+        "--maxObservationsPerColumn", String.valueOf(maxPrefs),
         "--maxSimilaritiesPerRow", String.valueOf(maxSimilarItemsPerItem),
         "--excludeSelfSimilarity", String.valueOf(Boolean.TRUE),
         "--threshold", String.valueOf(threshold),
+        "--randomSeed", String.valueOf(randomSeed),
         "--tempDir", getTempPath().toString(),
       });
     }
@@ -185,7 +188,7 @@ public final class ItemSimilarityJob extends AbstractJob {
     protected void setup(Context ctx) {
       Configuration conf = ctx.getConfiguration();
       maxSimilarItemsPerItem = conf.getInt(MAX_SIMILARITIES_PER_ITEM, -1);
-      indexItemIDMap = TasteHadoopUtils.readItemIDIndexMap(conf.get(ITEM_ID_INDEX_PATH_STR), conf);
+      indexItemIDMap = TasteHadoopUtils.readIDIndexMap(conf.get(ITEM_ID_INDEX_PATH_STR), conf);
 
       Preconditions.checkArgument(maxSimilarItemsPerItem > 0, "maxSimilarItemsPerItem was not correctly set!");
     }
@@ -198,10 +201,7 @@ public final class ItemSimilarityJob extends AbstractJob {
 
       TopSimilarItemsQueue topKMostSimilarItems = new TopSimilarItemsQueue(maxSimilarItemsPerItem);
 
-      Iterator<Vector.Element> similarityVectorIterator = similarityVector.get().iterateNonZero();
-
-      while (similarityVectorIterator.hasNext()) {
-        Vector.Element element = similarityVectorIterator.next();
+      for (Vector.Element element : similarityVector.get().nonZeroes()) {
         SimilarItem top = topKMostSimilarItems.top();
         double candidateSimilarity = element.get();
         if (candidateSimilarity > top.getSimilarity()) {

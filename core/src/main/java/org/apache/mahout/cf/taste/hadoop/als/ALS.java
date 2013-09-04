@@ -17,10 +17,16 @@
 
 package org.apache.mahout.cf.taste.hadoop.als;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.PathFilters;
 import org.apache.mahout.common.iterator.sequencefile.PathType;
@@ -29,6 +35,7 @@ import org.apache.mahout.common.iterator.sequencefile.SequenceFileDirValueIterat
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
 import org.apache.mahout.math.als.AlternatingLeastSquaresSolver;
+import org.apache.mahout.math.function.Functions;
 import org.apache.mahout.math.map.OpenIntObjectHashMap;
 
 import java.io.IOException;
@@ -45,13 +52,42 @@ final class ALS {
     return iterator.hasNext() ? iterator.next().get() : null;
   }
 
+  public static OpenIntObjectHashMap<Vector> readMatrixByRowsFromDistributedCache(int numEntities,
+      Configuration conf) throws IOException {
+
+    IntWritable rowIndex = new IntWritable();
+    VectorWritable row = new VectorWritable();
+
+
+    OpenIntObjectHashMap<Vector> featureMatrix = numEntities > 0
+        ? new OpenIntObjectHashMap<Vector>(numEntities) : new OpenIntObjectHashMap<Vector>();
+
+    Path[] cachedFiles = HadoopUtil.getCachedFiles(conf);
+    LocalFileSystem localFs = FileSystem.getLocal(conf);
+
+    for (Path cachedFile : cachedFiles) {
+
+      SequenceFile.Reader reader = null;
+      try {
+        reader = new SequenceFile.Reader(localFs, cachedFile, conf);
+        while (reader.next(rowIndex, row)) {
+          featureMatrix.put(rowIndex.get(), row.get());
+        }
+      } finally {
+        Closeables.close(reader, true);
+      }
+    }
+
+    Preconditions.checkState(!featureMatrix.isEmpty(), "Feature matrix is empty");
+    return featureMatrix;
+  }
+
   public static OpenIntObjectHashMap<Vector> readMatrixByRows(Path dir, Configuration conf) {
     OpenIntObjectHashMap<Vector> matrix = new OpenIntObjectHashMap<Vector>();
-
     for (Pair<IntWritable,VectorWritable> pair
         : new SequenceFileDirIterable<IntWritable,VectorWritable>(dir, PathType.LIST, PathFilters.partFilter(), conf)) {
       int rowIndex = pair.getFirst().get();
-      Vector row = pair.getSecond().get().clone();
+      Vector row = pair.getSecond().get();
       matrix.put(rowIndex, row);
     }
     return matrix;
@@ -62,9 +98,8 @@ final class ALS {
     Vector ratings = ratingsWritable.get();
 
     List<Vector> featureVectors = Lists.newArrayListWithCapacity(ratings.getNumNondefaultElements());
-    Iterator<Vector.Element> interactions = ratings.iterateNonZero();
-    while (interactions.hasNext()) {
-      int index = interactions.next().index();
+    for (Vector.Element e : ratings.nonZeroes()) {
+      int index = e.index();
       featureVectors.add(uOrM.get(index));
     }
 

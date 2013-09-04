@@ -17,17 +17,17 @@
 
 package org.apache.mahout.math;
 
-import com.google.common.collect.Maps;
-import com.google.common.io.Closeables;
-import org.apache.hadoop.io.Writable;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
+
+import com.google.common.collect.Maps;
+import com.google.common.io.Closeables;
+import org.apache.hadoop.io.Writable;
+import org.junit.Test;
 
 public final class MatrixWritableTest extends MahoutTestCase {
 
@@ -116,7 +116,7 @@ public final class MatrixWritableTest extends MahoutTestCase {
 		try {
 			toWrite.write(dos);
 		} finally {
-			Closeables.closeQuietly(dos);
+			Closeables.close(dos, false);
 		}
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
@@ -124,7 +124,7 @@ public final class MatrixWritableTest extends MahoutTestCase {
 		try {
 			toRead.readFields(dis);
 		} finally {
-			Closeables.closeQuietly(dis);
+			Closeables.close(dis, true);
 		}
 	}
 

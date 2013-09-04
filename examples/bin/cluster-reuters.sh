@@ -39,15 +39,14 @@ if [ ! -e $MAHOUT ]; then
   exit 1
 fi
 
-algorithm=( kmeans fuzzykmeans dirichlet minhash)
+algorithm=( kmeans fuzzykmeans lda)
 if [ -n "$1" ]; then
   choice=$1
 else
   echo "Please select a number to choose the corresponding clustering algorithm"
   echo "1. ${algorithm[0]} clustering"
   echo "2. ${algorithm[1]} clustering"
-  echo "3. ${algorithm[2]} clustering"
-  echo "4. ${algorithm[3]} clustering"
+  echo "3. ${algorithm[2]} clustering" 
   read -p "Enter your choice : " choice
 fi
 
@@ -57,40 +56,52 @@ clustertype=${algorithm[$choice-1]}
 WORK_DIR=/tmp/mahout-work-${USER}
 echo "creating work directory at ${WORK_DIR}"
 
-mkdir -p ${WORK_DIR}
-
-if [ ! -e ${WORK_DIR}/reuters-out-seqdir ]; then
-  if [ ! -e ${WORK_DIR}/reuters-out ]; then
-    if [ ! -e ${WORK_DIR}/reuters-sgm ]; then
-      if [ ! -f ${WORK_DIR}/reuters21578.tar.gz ]; then
-        echo "Downloading Reuters-21578"
-        curl http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.tar.gz -o ${WORK_DIR}/reuters21578.tar.gz
-      fi
-      mkdir -p ${WORK_DIR}/reuters-sgm
-      echo "Extracting..."
-      tar xzf ${WORK_DIR}/reuters21578.tar.gz -C ${WORK_DIR}/reuters-sgm
-    fi
-	
-    $MAHOUT org.apache.lucene.benchmark.utils.ExtractReuters ${WORK_DIR}/reuters-sgm ${WORK_DIR}/reuters-out
-  fi
-
-  MAHOUT_LOCAL=true $MAHOUT seqdirectory -i ${WORK_DIR}/reuters-out -o ${WORK_DIR}/reuters-out-seqdir -c UTF-8 -chunk 5
-fi
-
-# we know reuters-out-seqdir exists on a local disk at
-# this point, if we're running in clustered mode, 
-# copy it up to hdfs
 if [ "$HADOOP_HOME" != "" ] && [ "$MAHOUT_LOCAL" == "" ] ; then
   HADOOP="$HADOOP_HOME/bin/hadoop"
   if [ ! -e $HADOOP ]; then
     echo "Can't find hadoop in $HADOOP, exiting"
     exit 1
   fi
+fi
 
-  set +e
-  $HADOOP dfs -rmr ${WORK_DIR}/reuters-out-seqdir
-  set -e
-  $HADOOP dfs -put ${WORK_DIR}/reuters-out-seqdir ${WORK_DIR}/reuters-out-seqdir
+mkdir -p ${WORK_DIR}
+
+if [ ! -e ${WORK_DIR}/reuters-out-seqdir ]; then
+  if [ ! -e ${WORK_DIR}/reuters-out ]; then
+    if [ ! -e ${WORK_DIR}/reuters-sgm ]; then
+      if [ ! -f ${WORK_DIR}/reuters21578.tar.gz ]; then
+	  if [ -n "$2" ]; then
+	      echo "Copying Reuters from local download"
+	      cp $2 ${WORK_DIR}/reuters21578.tar.gz
+	  else
+              echo "Downloading Reuters-21578"
+              curl http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.tar.gz -o ${WORK_DIR}/reuters21578.tar.gz
+	  fi
+      fi
+      #make sure it was actually downloaded
+      if [ ! -f ${WORK_DIR}/reuters21578.tar.gz ]; then
+	  echo "Failed to download reuters"
+	  exit 1
+      fi
+      mkdir -p ${WORK_DIR}/reuters-sgm
+      echo "Extracting..."
+      tar xzf ${WORK_DIR}/reuters21578.tar.gz -C ${WORK_DIR}/reuters-sgm
+    fi
+  
+    echo "Extracting Reuters"
+    $MAHOUT org.apache.lucene.benchmark.utils.ExtractReuters ${WORK_DIR}/reuters-sgm ${WORK_DIR}/reuters-out
+    if [ "$HADOOP_HOME" != "" ] && [ "$MAHOUT_LOCAL" == "" ] ; then
+        echo "Copying Reuters data to Hadoop"
+        set +e
+        $HADOOP dfs -rmr ${WORK_DIR}/reuters-sgm
+        $HADOOP dfs -rmr ${WORK_DIR}/reuters-out
+        set -e
+        $HADOOP dfs -put ${WORK_DIR}/reuters-sgm ${WORK_DIR}/reuters-sgm
+        $HADOOP dfs -put ${WORK_DIR}/reuters-out ${WORK_DIR}/reuters-out
+    fi
+  fi
+  echo "Converting to Sequence Files from Directory"
+  $MAHOUT seqdirectory -i ${WORK_DIR}/reuters-out -o ${WORK_DIR}/reuters-out-seqdir -c UTF-8 -chunk 64 -xm sequential
 fi
 
 if [ "x$clustertype" == "xkmeans" ]; then
@@ -132,33 +143,32 @@ elif [ "x$clustertype" == "xfuzzykmeans" ]; then
     -dt sequencefile -b 100 -n 20 -sp 0 \
     && \
   cat ${WORK_DIR}/reuters-fkmeans/clusterdump
-elif [ "x$clustertype" == "xdirichlet" ]; then
+elif [ "x$clustertype" == "xlda" ]; then
   $MAHOUT seq2sparse \
     -i ${WORK_DIR}/reuters-out-seqdir/ \
-    -o ${WORK_DIR}/reuters-out-seqdir-sparse-dirichlet  --maxDFPercent 85 --namedVector \
+    -o ${WORK_DIR}/reuters-out-seqdir-sparse-lda -ow --maxDFPercent 85 --namedVector \
   && \
-  $MAHOUT dirichlet \
-    -i ${WORK_DIR}/reuters-out-seqdir-sparse-dirichlet/tfidf-vectors \
-    -o ${WORK_DIR}/reuters-dirichlet -k 20 -ow -x 20 -a0 2 \
-    -md org.apache.mahout.clustering.dirichlet.models.DistanceMeasureClusterDistribution \
-    -mp org.apache.mahout.math.DenseVector \
-    -dm org.apache.mahout.common.distance.CosineDistanceMeasure \
+  $MAHOUT rowid \
+    -i ${WORK_DIR}/reuters-out-seqdir-sparse-lda/tfidf-vectors \
+    -o ${WORK_DIR}/reuters-out-matrix \
   && \
-  $MAHOUT clusterdump \
-    -i ${WORK_DIR}/reuters-dirichlet/clusters-*-final \
-    -o ${WORK_DIR}/reuters-dirichlet/clusterdump \
-    -d ${WORK_DIR}/reuters-out-seqdir-sparse-dirichlet/dictionary.file-0 \
-    -dt sequencefile -b 100 -n 20 -sp 0 \
+  rm -rf ${WORK_DIR}/reuters-lda ${WORK_DIR}/reuters-lda-topics ${WORK_DIR}/reuters-lda-model \
+  && \
+  $MAHOUT cvb \
+    -i ${WORK_DIR}/reuters-out-matrix/matrix \
+    -o ${WORK_DIR}/reuters-lda -k 20 -ow -x 20 \
+    -dict ${WORK_DIR}/reuters-out-seqdir-sparse-lda/dictionary.file-* \
+    -dt ${WORK_DIR}/reuters-lda-topics \
+    -mt ${WORK_DIR}/reuters-lda-model \
+  && \
+  $MAHOUT vectordump \
+    -i ${WORK_DIR}/reuters-lda-topics/part-m-00000 \
+    -o ${WORK_DIR}/reuters-lda/vectordump \
+    -vs 10 -p true \
+    -d ${WORK_DIR}/reuters-out-seqdir-sparse-lda/dictionary.file-* \
+    -dt sequencefile -sort ${WORK_DIR}/reuters-lda-topics/part-m-00000 \
     && \
-  cat ${WORK_DIR}/reuters-dirichlet/clusterdump
-elif [ "x$clustertype" == "xminhash" ]; then
-  $MAHOUT seq2sparse \
-    -i ${WORK_DIR}/reuters-out-seqdir/ \
-    -o ${WORK_DIR}/reuters-out-seqdir-sparse-minhash --maxDFPercent 85 --namedVector \
-  && \
-  $MAHOUT org.apache.mahout.clustering.minhash.MinHashDriver \
-    -i ${WORK_DIR}/reuters-out-seqdir-sparse-minhash/tfidf-vectors \
-    -o ${WORK_DIR}/reuters-minhash --overwrite
+  cat ${WORK_DIR}/reuters-lda/vectordump
 else 
   echo "unknown cluster type: $clustertype"
 fi 

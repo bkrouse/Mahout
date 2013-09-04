@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import com.google.common.collect.Iterables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -106,7 +107,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    fs = FileSystem.get(new Configuration());
+    fs = FileSystem.get(getConfiguration());
     referenceManhattan = CanopyClusterer.createCanopies(getPoints(),
         manhattanDistanceMeasure, 3.1, 2.1);
     manhattanCentroids = CanopyClusterer.getCenters(referenceManhattan);
@@ -173,7 +174,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyMapperManhattan() throws Exception {
     CanopyMapper mapper = new CanopyMapper();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY, manhattanDistanceMeasure
         .getClass().getName());
     conf.set(CanopyConfigKeys.T1_KEY, String.valueOf(3.1));
@@ -209,7 +210,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyMapperEuclidean() throws Exception {
     CanopyMapper mapper = new CanopyMapper();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY, euclideanDistanceMeasure
         .getClass().getName());
     conf.set(CanopyConfigKeys.T1_KEY, String.valueOf(3.1));
@@ -245,7 +246,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyReducerManhattan() throws Exception {
     CanopyReducer reducer = new CanopyReducer();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY,
         "org.apache.mahout.common.distance.ManhattanDistanceMeasure");
     conf.set(CanopyConfigKeys.T1_KEY, String.valueOf(3.1));
@@ -258,17 +259,16 @@ public final class TestCanopyCreation extends MahoutTestCase {
 
     List<VectorWritable> points = getPointsWritable();
     reducer.reduce(new Text("centroid"), points, context);
-    Set<Text> keys = writer.getKeys();
-    assertEquals("Number of centroids", 3, keys.size());
+    Iterable<Text> keys = writer.getKeysInInsertionOrder();
+    assertEquals("Number of centroids", 3, Iterables.size(keys));
     int i = 0;
     for (Text key : keys) {
       List<ClusterWritable> data = writer.getValue(key);
       ClusterWritable clusterWritable = data.get(0);
-	  Canopy canopy = (Canopy)clusterWritable.getValue();
-	  assertEquals(manhattanCentroids.get(i).asFormatString()
-          + " is not equal to "
-          + canopy.computeCentroid().asFormatString(), manhattanCentroids
-          .get(i), canopy.computeCentroid());
+      Canopy canopy = (Canopy) clusterWritable.getValue();
+      assertEquals(manhattanCentroids.get(i).asFormatString() + " is not equal to "
+          + canopy.computeCentroid().asFormatString(),
+          manhattanCentroids.get(i), canopy.computeCentroid());
       i++;
     }
   }
@@ -281,30 +281,28 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyReducerEuclidean() throws Exception {
     CanopyReducer reducer = new CanopyReducer();
-    Configuration conf = new Configuration();
-    conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY,
-        "org.apache.mahout.common.distance.EuclideanDistanceMeasure");
+    Configuration conf = getConfiguration();
+    conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY, "org.apache.mahout.common.distance.EuclideanDistanceMeasure");
     conf.set(CanopyConfigKeys.T1_KEY, String.valueOf(3.1));
     conf.set(CanopyConfigKeys.T2_KEY, String.valueOf(2.1));
     conf.set(CanopyConfigKeys.CF_KEY, "0");
     DummyRecordWriter<Text, ClusterWritable> writer = new DummyRecordWriter<Text, ClusterWritable>();
-    Reducer<Text, VectorWritable, Text, ClusterWritable>.Context context = DummyRecordWriter
-        .build(reducer, conf, writer, Text.class, VectorWritable.class);
+    Reducer<Text, VectorWritable, Text, ClusterWritable>.Context context =
+        DummyRecordWriter.build(reducer, conf, writer, Text.class, VectorWritable.class);
     reducer.setup(context);
 
     List<VectorWritable> points = getPointsWritable();
     reducer.reduce(new Text("centroid"), points, context);
-    Set<Text> keys = writer.getKeys();
-    assertEquals("Number of centroids", 3, keys.size());
+    Iterable<Text> keys = writer.getKeysInInsertionOrder();
+    assertEquals("Number of centroids", 3, Iterables.size(keys));
     int i = 0;
     for (Text key : keys) {
       List<ClusterWritable> data = writer.getValue(key);
       ClusterWritable clusterWritable = data.get(0);
-      Canopy canopy = (Canopy)clusterWritable.getValue();
-      assertEquals(euclideanCentroids.get(i).asFormatString()
-          + " is not equal to "
-          + canopy.computeCentroid().asFormatString(), euclideanCentroids
-          .get(i), canopy.computeCentroid());
+      Canopy canopy = (Canopy) clusterWritable.getValue();
+      assertEquals(euclideanCentroids.get(i).asFormatString() + " is not equal to "
+          + canopy.computeCentroid().asFormatString(),
+          euclideanCentroids.get(i), canopy.computeCentroid());
       i++;
     }
   }
@@ -316,7 +314,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyGenManhattanMR() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration config = new Configuration();
+    Configuration config = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points,
         getTestTempFilePath("testdata/file1"), fs, config);
     ClusteringTestUtils.writePointsToFile(points,
@@ -333,29 +331,27 @@ public final class TestCanopyCreation extends MahoutTestCase {
     try {
       Writable key = new Text();
       ClusterWritable clusterWritable = new ClusterWritable();
-	  assertTrue("more to come", reader.next(key, clusterWritable));
+      assertTrue("more to come", reader.next(key, clusterWritable));
       assertEquals("1st key", "C-0", key.toString());
 
       List<Pair<Double,Double>> refCenters = Lists.newArrayList();
       refCenters.add(new Pair<Double,Double>(1.5,1.5));
       refCenters.add(new Pair<Double,Double>(4.333333333333334,4.333333333333334));
-	  Pair<Double,Double> c = new Pair<Double,Double>(clusterWritable.getValue() .getCenter().get(0),
-			clusterWritable.getValue().getCenter().get(1));
+      Pair<Double,Double> c = new Pair<Double,Double>(clusterWritable.getValue() .getCenter().get(0),
+      clusterWritable.getValue().getCenter().get(1));
       assertTrue("center "+c+" not found", findAndRemove(c, refCenters, EPSILON));
       assertTrue("more to come", reader.next(key, clusterWritable));
       assertEquals("2nd key", "C-1", key.toString());
       c = new Pair<Double,Double>(clusterWritable.getValue().getCenter().get(0),
-    		  clusterWritable.getValue().getCenter().get(1));
-      assertTrue("center "+c+" not found", findAndRemove(c, refCenters, EPSILON));
+          clusterWritable.getValue().getCenter().get(1));
+      assertTrue("center " + c + " not found", findAndRemove(c, refCenters, EPSILON));
       assertFalse("more to come", reader.next(key, clusterWritable));
     } finally {
-      Closeables.closeQuietly(reader);
+      Closeables.close(reader, true);
     }
   }
 
-  static boolean findAndRemove(Pair<Double, Double> target,
-                               Collection<Pair<Double, Double>> list,
-                               double epsilon) {
+  static boolean findAndRemove(Pair<Double, Double> target, Collection<Pair<Double, Double>> list, double epsilon) {
     for (Pair<Double,Double> curr : list) {
       if ( (Math.abs(target.getFirst() - curr.getFirst()) < epsilon) 
            && (Math.abs(target.getSecond() - curr.getSecond()) < epsilon) ) {
@@ -373,7 +369,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyGenEuclideanMR() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration config = new Configuration();
+    Configuration config = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points,
         getTestTempFilePath("testdata/file1"), fs, config);
     ClusteringTestUtils.writePointsToFile(points,
@@ -406,7 +402,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
       assertTrue("center "+c+" not found", findAndRemove(c, refCenters, EPSILON));
       assertFalse("more to come", reader.next(key, clusterWritable));
     } finally {
-      Closeables.closeQuietly(reader);
+      Closeables.close(reader, true);
     }
   }
 
@@ -414,7 +410,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testClusteringManhattanSeq() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration config = new Configuration();
+    Configuration config = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points,
         getTestTempFilePath("testdata/file1"), fs, config);
     // now run the Canopy Driver in sequential mode
@@ -441,7 +437,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testClusteringEuclideanSeq() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration config = new Configuration();
+    Configuration config = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points,
         getTestTempFilePath("testdata/file1"), fs, config);
     // now run the Canopy Driver in sequential mode
@@ -457,7 +453,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
         optKey(DefaultOptionCreator.OVERWRITE_OPTION),
         optKey(DefaultOptionCreator.METHOD_OPTION),
         DefaultOptionCreator.SEQUENTIAL_METHOD };
-    new CanopyDriver().run(args);
+    ToolRunner.run(config, new CanopyDriver(), args);
 
     // verify output from sequence file
     Path path = new Path(output, "clusters-0-final/part-r-00000");
@@ -479,7 +475,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testClusteringEuclideanWithOutlierRemovalSeq() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration config = new Configuration();
+    Configuration config = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points,
         getTestTempFilePath("testdata/file1"), fs, config);
     // now run the Canopy Driver in sequential mode
@@ -496,7 +492,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
         optKey(DefaultOptionCreator.OVERWRITE_OPTION),
         optKey(DefaultOptionCreator.METHOD_OPTION),
         DefaultOptionCreator.SEQUENTIAL_METHOD };
-    new CanopyDriver().run(args);
+    ToolRunner.run(config, new CanopyDriver(), args);
 
     // verify output from sequence file
     Path path = new Path(output, "clusters-0-final/part-r-00000");
@@ -523,7 +519,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testClusteringManhattanMR() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points, true, 
         getTestTempFilePath("testdata/file1"), fs, conf);
     ClusteringTestUtils.writePointsToFile(points, true, 
@@ -544,7 +540,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testClusteringEuclideanMR() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points, true, 
         getTestTempFilePath("testdata/file1"), fs, conf);
     ClusteringTestUtils.writePointsToFile(points, true, 
@@ -560,7 +556,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
         optKey(DefaultOptionCreator.T2_OPTION), "2.1",
         optKey(DefaultOptionCreator.CLUSTERING_OPTION),
         optKey(DefaultOptionCreator.OVERWRITE_OPTION) };
-    ToolRunner.run(new Configuration(), new CanopyDriver(), args);
+    ToolRunner.run(getConfiguration(), new CanopyDriver(), args);
     Path path = new Path(output, "clusteredPoints/part-m-00000");
     long count = HadoopUtil.countRecords(path, conf);
     assertEquals("number of points", points.size(), count);
@@ -573,7 +569,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testClusteringEuclideanWithOutlierRemovalMR() throws Exception {
     List<VectorWritable> points = getPointsWritable();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     ClusteringTestUtils.writePointsToFile(points, true, 
         getTestTempFilePath("testdata/file1"), fs, conf);
     ClusteringTestUtils.writePointsToFile(points, true, 
@@ -590,7 +586,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
         optKey(DefaultOptionCreator.OUTLIER_THRESHOLD), "0.7",
         optKey(DefaultOptionCreator.CLUSTERING_OPTION),
         optKey(DefaultOptionCreator.OVERWRITE_OPTION) };
-    ToolRunner.run(new Configuration(), new CanopyDriver(), args);
+    ToolRunner.run(getConfiguration(), new CanopyDriver(), args);
     Path path = new Path(output, "clusteredPoints/part-m-00000");
     long count = HadoopUtil.countRecords(path, conf);
     int expectedPointsAfterOutlierRemoval = 8;
@@ -605,7 +601,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyReducerT3T4Configuration() throws Exception {
     CanopyReducer reducer = new CanopyReducer();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY,
         "org.apache.mahout.common.distance.ManhattanDistanceMeasure");
     conf.set(CanopyConfigKeys.T1_KEY, String.valueOf(3.1));
@@ -628,7 +624,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyMapperClusterFilter() throws Exception {
     CanopyMapper mapper = new CanopyMapper();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY, manhattanDistanceMeasure
         .getClass().getName());
     conf.set(CanopyConfigKeys.T1_KEY, String.valueOf(3.1));
@@ -658,7 +654,7 @@ public final class TestCanopyCreation extends MahoutTestCase {
   @Test
   public void testCanopyReducerClusterFilter() throws Exception {
     CanopyReducer reducer = new CanopyReducer();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set(CanopyConfigKeys.DISTANCE_MEASURE_KEY,
         "org.apache.mahout.common.distance.ManhattanDistanceMeasure");
     conf.set(CanopyConfigKeys.T1_KEY, String.valueOf(3.1));

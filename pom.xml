@@ -20,7 +20,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.mahout</groupId>
   <artifactId>mahout</artifactId>
-  <version>0.8-SNAPSHOT</version>
+  <version>0.9-SNAPSHOT</version>
 
   <parent>
     <groupId>org.apache</groupId>
@@ -33,7 +33,7 @@
   <url>http://mahout.apache.org</url>
   <inceptionYear>2008</inceptionYear>
   <description>Mahout's goal is to build scalable machine learning libraries. With scalable we mean: Scalable to
-    reasonably large data sets. Our core algorithms for clustering, classfication and batch based collaborative
+    reasonably large data sets. Our core algorithms for clustering, classification and batch based collaborative
     filtering are implemented on top of Apache Hadoop using the map/reduce paradigm. However we do not restrict
     contributions to Hadoop based implementations: Contributions that run on a single node or on a non-Hadoop
     cluster are welcome as well. The core libraries are highly optimized to allow for good performance also for
@@ -42,7 +42,7 @@
     diverse community to facilitate discussions not only on the project itself but also on potential use cases. Come
     to the mailing lists to find out more. Currently Mahout supports mainly four use cases: Recommendation mining
     takes users' behavior and from that tries to find items users might like. Clustering takes e.g. text documents
-    and groups them into groups of topically related documents. Classification learns from exisiting categorized
+    and groups them into groups of topically related documents. Classification learns from existing categorized
     documents what documents of a specific category look like and is able to assign unlabelled documents to the
     (hopefully) correct category. Frequent itemset mining takes a set of item groups (terms in a query session,
     shopping cart content) and identifies, which individual items usually appear together.
@@ -95,16 +95,23 @@
   </mailingLists>
   <properties>
     <skipTests>false</skipTests>
+    <maven.compiler.source>1.6</maven.compiler.source>
+    <maven.compiler.target>1.6</maven.compiler.target>
     <maven.clover.multiproject>true</maven.clover.multiproject>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <msurefire.version>2.15</msurefire.version>
+    <mpmd.version>3.0.1</mpmd.version>
+    <mcheckstyle.version>2.10</mcheckstyle.version>
+    <mfindbugs.version>2.5.2</mfindbugs.version>
+    <mjavadoc.version>2.9.1</mjavadoc.version>
     <hadoop.version>1.1.2</hadoop.version>
-    <lucene.version>4.2.1</lucene.version>
+    <lucene.version>4.3.0</lucene.version>
   </properties>
   <issueManagement>
     <system>Jira</system>
     <url>https://issues.apache.org/jira/browse/MAHOUT</url>
   </issueManagement>
-  
+
   <repositories>
     <repository>
       <id>apache.snapshots</id>
@@ -115,12 +122,16 @@
       </releases>
     </repository>
   </repositories>
-  
+
+  <prerequisites>
+    <maven>3.0</maven>
+  </prerequisites>
+
   <dependencyManagement>
     <dependencies>
-    
+
       <!-- our modules -->
-      
+
       <dependency>
         <artifactId>mahout-core</artifactId>
         <groupId>${project.groupId}</groupId>
@@ -133,7 +144,7 @@
         <type>test-jar</type>
         <scope>test</scope>
       </dependency>
-      
+
       <dependency>
         <artifactId>mahout-math</artifactId>
         <groupId>${project.groupId}</groupId>
@@ -145,7 +156,7 @@
         <artifactId>mahout-math</artifactId>
         <type>test-jar</type>
       </dependency>
-      
+
       <dependency>
         <artifactId>mahout-integration</artifactId>
         <groupId>${project.groupId}</groupId>
@@ -190,7 +201,7 @@
       <dependency>
         <groupId>org.easymock</groupId>
         <artifactId>easymock</artifactId>
-        <version>3.1</version>
+        <version>3.2</version>
         <scope>test</scope>
       </dependency>
 
@@ -367,23 +378,17 @@
       </dependency>
 
       <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.4</version>
-      </dependency>
-      
-      <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>3.1</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-math3</artifactId>
         <version>3.2</version>
       </dependency>
-      
+
       <dependency>
         <groupId>com.thoughtworks.xstream</groupId>
         <artifactId>xstream</artifactId>
@@ -395,7 +400,7 @@
         <artifactId>guava</artifactId>
         <version>14.0.1</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.apache.mahout.commons</groupId>
         <artifactId>commons-cli</artifactId>
@@ -425,13 +430,13 @@
                   <pluginExecutionFilter>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <versionRange>2.7</versionRange>
+                    <versionRange>2.8</versionRange>
                     <goals>
                       <goal>copy-dependencies</goal>
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -445,8 +450,8 @@
                   </pluginExecutionFilter>
                   <action>
                     <execute>
-                    	<runOnIncremental>false</runOnIncremental>
-                    	<runOnConfiguration>true</runOnConfiguration>
+                      <runOnIncremental>false</runOnIncremental>
+                      <runOnConfiguration>true</runOnConfiguration>
                     </execute>
                   </action>
                 </pluginExecution>
@@ -471,7 +476,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.9</version>
+          <version>${mjavadoc.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -491,7 +496,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.7</version>
+          <version>2.8</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -559,83 +564,24 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.0</version>
+          <version>3.1</version>
           <configuration>
-            <encoding>UTF-8</encoding>
-            <source>1.6</source>
-            <target>1.6</target>
+            <!-- encoding, source and target are explicitly defined until MNGECLIPSE-966 is fixed -->
+            <encoding>${project.build.sourceEncoding}</encoding>
+            <source>${maven.compiler.source}</source>
+            <target>${maven.compiler.target}</target>
             <optimize>true</optimize>
           </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>2.10</version>
-          <dependencies>
-            <dependency>
-              <groupId>org.apache.mahout</groupId>
-              <artifactId>mahout-buildtools</artifactId>
-              <version>${project.version}</version>
-            </dependency>
-          </dependencies>
-          <configuration>
-            <encoding>UTF-8</encoding>
-          </configuration>
-            <executions>
-              <execution>
-                <id>validate</id>
-                <phase>validate</phase>
-                <configuration>
-                  <configLocation>../buildtools/src/main/resources/mahout-checkstyle.xml</configLocation>
-                  <consoleOutput>true</consoleOutput>
-                  <failsOnError>false</failsOnError>
-                  <linkXRef>false</linkXRef>
-                  <sourceDirectory>${basedir}/src</sourceDirectory>
-                </configuration>
-                <goals>
-                  <goal>checkstyle</goal>
-                </goals>
-              </execution>
-            </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-pmd-plugin</artifactId>
-          <version>3.0.1</version>
-          <dependencies>
-            <dependency>
-              <groupId>org.apache.mahout</groupId>
-              <artifactId>mahout-buildtools</artifactId>
-              <version>${project.version}</version>
-            </dependency>
-          </dependencies>
-          <configuration>
-            <rulesets>
-              <!-- classpath -->
-              <ruleset>../buildtools/src/main/resources/mahout-pmd-ruleset.xml</ruleset>
-            </rulesets>
-            <sourceEncoding>UTF-8</sourceEncoding>
-            <targetJdk>1.6</targetJdk>
-            <linkXRef>false</linkXRef>
-            <includeTests>true</includeTests>
-            <verbose>true</verbose>
-          </configuration>
-          <!--
-                  <executions>
-                    <execution>
-                      <id>validate</id>
-                      <phase>validate</phase>
-                      <goals>
-                        <goal>check</goal>
-                      </goals>
-                    </execution>
-                  </executions>
-          -->
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.14</version>
+          <version>${msurefire.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${msurefire.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -669,10 +615,17 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <forkMode>once</forkMode>
-	  <argLine>-Xms256m -Xmx1800m</argLine>
+          <forkCount>1</forkCount>
+          <reuseForks>false</reuseForks>
+          <threadCount>1</threadCount>
+          <perCoreThreadCount>false</perCoreThreadCount>
+          <parallel>classes</parallel>
+          <argLine>-Xmx512m</argLine>
           <testFailureIgnore>false</testFailureIgnore>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
+          <systemPropertyVariables>
+            <mahout.test.directory>${project.build.directory}</mahout.test.directory>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
       <plugin>
@@ -691,15 +644,74 @@
       <plugin>
         <groupId>com.atlassian.maven.plugins</groupId>
         <artifactId>maven-clover2-plugin</artifactId>
-        <version>3.1.10.1</version>
+        <version>3.1.12</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${mcheckstyle.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.mahout</groupId>
+            <artifactId>mahout-buildtools</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>${mpmd.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.mahout</groupId>
+            <artifactId>mahout-buildtools</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <rulesets>
+            <!-- classpath -->
+            <ruleset>mahout-pmd-ruleset.xml</ruleset>
+          </rulesets>
+          <!-- targetJdk is explicitly set until MPMD-170 is resolved -->
+          <targetJdk>${maven.compiler.target}</targetJdk>
+          <linkXRef>false</linkXRef>
+          <includeTests>true</includeTests>
+          <verbose>true</verbose>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <version>${mfindbugs.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.mahout</groupId>
+            <artifactId>mahout-buildtools</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <xmlOutput>true</xmlOutput>
+          <threshold>Low</threshold>
+          <effort>Default</effort>
+          <!--visitors>FindDeadLocalStores,UnreadFields</visitors-->
+          <!--omitVisitors>FindDeadLocalStores,UnreadFields</omitVisitors-->
+          <debug>true</debug>
+          <relaxed>true</relaxed>
+          <!-- classpath -->
+          <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
+          <failOnError>false</failOnError>
+        </configuration>
       </plugin>
     </plugins>
-      <resources>
-        <resource>
-          <directory>src/main/resources</directory>
-          <filtering>true</filtering>
-        </resource>
-      </resources>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
   </build>
   <modules>
     <module>buildtools</module>
@@ -761,7 +773,7 @@
             <inherited>true</inherited>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>2.9</version>
+            <version>${mjavadoc.version}</version>
             <executions>
               <execution>
                 <id>attach-javadocs</id>
@@ -794,7 +806,6 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.0</version>
             <configuration>
               <showDeprecation>true</showDeprecation>
               <showWarnings>true</showWarnings>
@@ -804,12 +815,53 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-checkstyle-plugin</artifactId>
-            <version>2.10</version>
+            <executions>
+              <execution>
+                <id>sourcecheck</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>checkstyle</goal>
+                </goals>
+                <configuration>
+                  <failsOnError>false</failsOnError>
+                  <!-- classpath -->
+                  <configLocation>mahout-checkstyle.xml</configLocation>
+                  <consoleOutput>true</consoleOutput>
+                  <linkXRef>false</linkXRef>
+                  <sourceDirectory>${basedir}/src</sourceDirectory>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-pmd-plugin</artifactId>
-            <version>3.0.1</version>
+            <executions>
+              <execution>
+                <id>sourcecheck</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>check</goal>
+                  <goal>cpd-check</goal>
+                </goals>
+                <configuration>
+                  <failOnViolation>false</failOnViolation>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>findbugs-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>sourcecheck</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>check</goal>
+                </goals>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>
@@ -842,6 +894,35 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <id>ci</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+        <property>
+          <name>env.JENKINS_URL</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>remove-old-mahout-artifacts</id>
+                <phase>prepare-package</phase>
+                <goals>
+                  <goal>remove-project-artifact</goal>
+                </goals>
+                <configuration>
+                  <failOnError>false</failOnError>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
   <scm>
     <connection>scm:svn:https://svn.apache.org/repos/asf/mahout/trunk</connection>
@@ -860,15 +941,16 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-report-plugin</artifactId>
-        <version>2.14</version>
+        <version>${msurefire.version}</version>
       </plugin>
       <!-- checkstyle -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>2.10</version>
+        <version>${mcheckstyle.version}</version>
         <configuration>
-          <configLocation>${project.build.directory}/../../buildtools/src/main/resources/mahout-checkstyle.xml</configLocation>
+          <!-- classpath -->
+          <configLocation>mahout-checkstyle.xml</configLocation>
           <consoleOutput>true</consoleOutput>
         </configuration>
       </plugin>
@@ -876,7 +958,7 @@
       <plugin>
         <groupId>com.atlassian.maven.plugins</groupId>
         <artifactId>maven-clover2-plugin</artifactId>
-        <version>3.1.10.1</version>
+        <version>3.1.12</version>
         <configuration>
           <generateHistorical>true</generateHistorical>
           <licenseLocation>buildtools/clover.license</licenseLocation>
@@ -889,19 +971,19 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.9</version>
+        <version>${mjavadoc.version}</version>
       </plugin>
       <!-- code duplication - copy and paste detection -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-pmd-plugin</artifactId>
-        <version>3.0.1</version>
+        <version>${mpmd.version}</version>
         <configuration>
           <rulesets>
-            <ruleset>../buildtools/src/main/resources/mahout-pmd-ruleset.xml</ruleset>
+            <!-- classpath -->
+            <ruleset>mahout-pmd-ruleset.xml</ruleset>
           </rulesets>
-          <sourceEncoding>UTF-8</sourceEncoding>
-          <targetJdk>1.6</targetJdk>
+          <targetJdk>${maven.compiler.target}</targetJdk>
           <linkXRef>false</linkXRef>
           <includeTests>true</includeTests>
           <verbose>true</verbose>
@@ -923,18 +1005,17 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>findbugs-maven-plugin</artifactId>
-        <version>2.5.2</version>
+        <version>${mfindbugs.version}</version>
         <configuration>
           <xmlOutput>true</xmlOutput>
-          <xmlOutputDirectory>target/findbugs</xmlOutputDirectory>
-          <outputDirectory>target/site/findbugs</outputDirectory>
           <threshold>Low</threshold>
           <effort>Default</effort>
           <!--visitors>FindDeadLocalStores,UnreadFields</visitors-->
           <!--omitVisitors>FindDeadLocalStores,UnreadFields</omitVisitors-->
           <debug>true</debug>
           <relaxed>true</relaxed>
-          <excludeFilterFile>../buildtools/src/main/resources/findbugs-exclude.xml</excludeFilterFile>
+          <!-- classpath -->
+          <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
         </configuration>
       </plugin>
       <plugin>
@@ -956,18 +1037,8 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-report-plugin</artifactId>
-        <version>2.14</version>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.9</version>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-project-info-reports-plugin</artifactId>
-        <version>2.6</version>
+        <version>2.7</version>
         <reportSets>
           <reportSet>
             <reports>
@@ -978,11 +1049,6 @@
             </reports>
           </reportSet>
         </reportSets>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-pmd-plugin</artifactId>
-        <version>3.0.1</version>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>

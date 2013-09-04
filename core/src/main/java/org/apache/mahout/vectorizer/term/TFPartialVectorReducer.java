@@ -17,10 +17,8 @@
 
 package org.apache.mahout.vectorizer.term;
 
-import com.google.common.base.Preconditions;
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -28,6 +26,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.StringTuple;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterable;
@@ -42,7 +41,6 @@ import org.apache.mahout.vectorizer.DictionaryVectorizer;
 import org.apache.mahout.vectorizer.common.PartialVectorMerger;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Iterator;
 
 /**
@@ -85,7 +83,7 @@ public class TFPartialVectorReducer extends Reducer<Text, StringTuple, Text, Vec
 
         sf.end();
       } finally {
-        Closeables.closeQuietly(sf);
+        Closeables.close(sf, true);
       }
     } else {
       for (String term : value.getEntries()) {
@@ -108,7 +106,7 @@ public class TFPartialVectorReducer extends Reducer<Text, StringTuple, Text, Vec
       VectorWritable vectorWritable = new VectorWritable(vector);
       context.write(key, vectorWritable);
     } else {
-      context.getCounter("TFParticalVectorReducer", "emptyVectorCount").increment(1);
+      context.getCounter("TFPartialVectorReducer", "emptyVectorCount").increment(1);
     }
   }
 
@@ -116,16 +114,14 @@ public class TFPartialVectorReducer extends Reducer<Text, StringTuple, Text, Vec
   protected void setup(Context context) throws IOException, InterruptedException {
     super.setup(context);
     Configuration conf = context.getConfiguration();
-    URI[] localFiles = DistributedCache.getCacheFiles(conf);
-    Preconditions.checkArgument(localFiles != null && localFiles.length >= 1,
-            "missing paths from the DistributedCache");
 
     dimension = conf.getInt(PartialVectorMerger.DIMENSION, Integer.MAX_VALUE);
     sequentialAccess = conf.getBoolean(PartialVectorMerger.SEQUENTIAL_ACCESS, false);
     namedVector = conf.getBoolean(PartialVectorMerger.NAMED_VECTOR, false);
     maxNGramSize = conf.getInt(DictionaryVectorizer.MAX_NGRAMS, maxNGramSize);
 
-    Path dictionaryFile = new Path(localFiles[0].getPath());
+    //MAHOUT-1247
+    Path dictionaryFile = HadoopUtil.getSingleCachedFile(conf);
     // key is word value is id
     for (Pair<Writable, IntWritable> record
             : new SequenceFileIterable<Writable, IntWritable>(dictionaryFile, true, conf)) {

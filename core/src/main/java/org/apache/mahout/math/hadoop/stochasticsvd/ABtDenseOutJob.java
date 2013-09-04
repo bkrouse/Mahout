@@ -24,9 +24,9 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.regex.Matcher;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
@@ -46,6 +46,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.IOUtils;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.PathType;
@@ -128,8 +129,7 @@ public final class ABtDenseOutJob {
           aCols[i].setQuick(aRowCount, vec.getQuick(i));
         }
       } else if (vec.size() > 0) {
-        for (Iterator<Vector.Element> vecIter = vec.iterateNonZero(); vecIter.hasNext();) {
-          Vector.Element vecEl = vecIter.next();
+        for (Vector.Element vecEl : vec.nonZeroes()) {
           int i = vecEl.index();
           extendAColIfNeeded(i, aRowCount + 1);
           aCols[i].setQuick(aRowCount, vecEl.get());
@@ -241,8 +241,7 @@ public final class ABtDenseOutJob {
               continue;
             }
             int j = -1;
-            for (Iterator<Vector.Element> aColIter = aCol.iterateNonZero(); aColIter.hasNext();) {
-              Vector.Element aEl = aColIter.next();
+            for (Vector.Element aEl : aCol.nonZeroes()) {
               j = aEl.index();
 
               /*
@@ -324,7 +323,7 @@ public final class ABtDenseOutJob {
       blockHeight = conf.getInt(BtJob.PROP_OUTER_PROD_BLOCK_HEIGHT, -1);
       distributedBt = conf.get(PROP_BT_BROADCAST) != null;
       if (distributedBt) {
-        btLocalPath = DistributedCache.getLocalCacheFiles(conf);
+        btLocalPath = HadoopUtil.getCachedFiles(conf);
         localFsConfig = new Configuration();
         localFsConfig.set("fs.default.name", "file:///");
       }
@@ -365,7 +364,7 @@ public final class ABtDenseOutJob {
       NUMBER_FORMAT.setGroupingUsed(false);
     }
 
-    private final Deque<Closeable> closeables = new LinkedList<Closeable>();
+    private final Deque<Closeable> closeables = Lists.newLinkedList();
 
     protected int blockHeight;
 

@@ -23,10 +23,9 @@ import java.text.NumberFormat;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.regex.Matcher;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
@@ -47,6 +46,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.IOUtils;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.PathType;
@@ -119,8 +119,7 @@ public final class ABtJob {
           aCols[i].setQuick(aRowCount, vec.getQuick(i));
         }
       } else {
-        for (Iterator<Vector.Element> vecIter = vec.iterateNonZero(); vecIter.hasNext();) {
-          Vector.Element vecEl = vecIter.next();
+        for (Vector.Element vecEl : vec.nonZeroes()) {
           int i = vecEl.index();
           extendAColIfNeeded(i, aRowCount + 1);
           aCols[i].setQuick(aRowCount, vecEl.get());
@@ -160,8 +159,7 @@ public final class ABtJob {
             continue;
           }
           int j = -1;
-          for (Iterator<Vector.Element> aColIter = aCol.iterateNonZero(); aColIter.hasNext();) {
-            Vector.Element aEl = aColIter.next();
+          for (Vector.Element aEl : aCol.nonZeroes()) {
             j = aEl.index();
 
             // outKey.setTaskItemOrdinal(j);
@@ -214,8 +212,7 @@ public final class ABtJob {
 
       if (distributedBt) {
 
-        Path[] btFiles =
-          DistributedCache.getLocalCacheFiles(context.getConfiguration());
+        Path[] btFiles = HadoopUtil.getCachedFiles(context.getConfiguration());
 
         // DEBUG: stdout
         //System.out.printf("list of files: " + btFiles);
@@ -296,7 +293,7 @@ public final class ABtJob {
       NUMBER_FORMAT.setGroupingUsed(false);
     }
 
-    private final Deque<Closeable> closeables = new LinkedList<Closeable>();
+    private final Deque<Closeable> closeables = Lists.newLinkedList();
     protected final SparseRowBlockWritable accum = new SparseRowBlockWritable();
 
     protected int blockHeight;

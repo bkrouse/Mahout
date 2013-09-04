@@ -54,7 +54,7 @@ import org.apache.mahout.math.function.IntFunction;
  * @see MersenneTwister
  * @see java.util.Random
  */
-public abstract class RandomEngine implements DoubleFunction, IntFunction {
+public abstract class RandomEngine extends DoubleFunction implements IntFunction {
 
   /**
    * Equivalent to <tt>raw()</tt>. This has the effect that random engines can now be used as function objects,
@@ -84,7 +84,7 @@ public abstract class RandomEngine implements DoubleFunction, IntFunction {
     do {
       // -9.223372036854776E18 == (double) Long.MIN_VALUE
       // 5.421010862427522E-20 == 1 / Math.pow(2,64) == 1 / ((double) Long.MAX_VALUE - (double) Long.MIN_VALUE);
-      nextDouble = ((double) nextLong() - -9.223372036854776E18) * 5.421010862427522E-20;
+      nextDouble = (nextLong() - -9.223372036854776E18) * 5.421010862427522E-20;
     }
     // catch loss of precision of long --> double conversion
     while (!(nextDouble > 0.0 && nextDouble < 1.0));
@@ -153,7 +153,7 @@ public abstract class RandomEngine implements DoubleFunction, IntFunction {
 
     // transform to (0.0,1.0)-interval
     // 2.3283064365386963E-10 == 1.0 / Math.pow(2,32)
-    return (double) (nextInt & 0xFFFFFFFFL) * 2.3283064365386963E-10;
+    return (nextInt & 0xFFFFFFFFL) * 2.3283064365386963E-10;
 
     /*
       nextInt == Integer.MAX_VALUE   --> 0.49999999976716936

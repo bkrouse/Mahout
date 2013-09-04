@@ -57,6 +57,9 @@ public class SparseMatrix extends AbstractMatrix {
   public Matrix clone() {
     SparseMatrix clone = (SparseMatrix) super.clone();
     clone.rowVectors = rowVectors.clone();
+    for (int i = 0; i < numRows(); i++) {
+      clone.rowVectors.put(i, rowVectors.get(i).clone());
+    }
     return clone;
   }
 
@@ -175,6 +178,7 @@ public class SparseMatrix extends AbstractMatrix {
     Vector res = rowVectors.get(row);
     if (res == null) {
       res = new RandomAccessSparseVector(columnSize());
+      rowVectors.put(row, res);
     }
     return res;
   }

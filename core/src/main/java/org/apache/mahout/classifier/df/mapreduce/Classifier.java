@@ -17,6 +17,10 @@
 
 package org.apache.mahout.classifier.df.mapreduce;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Random;
+
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
@@ -46,11 +50,6 @@ import org.apache.mahout.common.RandomUtils;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileIterable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.List;
-import java.util.Random;
 
 /**
  * Mapreduce implementation that classifies the Input data using a previousely built decision forest
@@ -164,7 +163,7 @@ public class Classifier {
           }
         }
       } finally {
-        Closeables.closeQuietly(ofile);
+        Closeables.close(ofile, false);
       }
     }
     results = new double[resList.size()][2];
@@ -199,17 +198,15 @@ public class Classifier {
 
       Configuration conf = context.getConfiguration();
 
-      URI[] files = DistributedCache.getCacheFiles(conf);
+      Path[] files = HadoopUtil.getCachedFiles(conf);
 
-      if (files == null || files.length < 2) {
+      if (files.length < 2) {
         throw new IOException("not enough paths in the DistributedCache");
       }
-      
-      dataset = Dataset.load(conf, new Path(files[0].getPath()));
-
+      dataset = Dataset.load(conf, files[0]);
       converter = new DataConverter(dataset);
 
-      forest = DecisionForest.load(conf, new Path(files[1].getPath()));
+      forest = DecisionForest.load(conf, files[1]);
       if (forest == null) {
         throw new InterruptedException("DecisionForest not found!");
       }

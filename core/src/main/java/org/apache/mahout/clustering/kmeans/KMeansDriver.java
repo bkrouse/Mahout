@@ -36,7 +36,6 @@ import org.apache.mahout.common.HadoopUtil;
 import org.apache.mahout.common.commandline.DefaultOptionCreator;
 import org.apache.mahout.common.distance.DistanceMeasure;
 import org.apache.mahout.common.distance.SquaredEuclideanDistanceMeasure;
-import org.apache.mahout.math.VectorWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,9 +96,6 @@ public class KMeansDriver extends AbstractJob {
     boolean runClustering = hasOption(DefaultOptionCreator.CLUSTERING_OPTION);
     boolean runSequential = getOption(DefaultOptionCreator.METHOD_OPTION).equalsIgnoreCase(
         DefaultOptionCreator.SEQUENTIAL_METHOD);
-    if (getConf() == null) {
-      setConf(new Configuration());
-    }
     double clusterClassificationThreshold = 0.0;
     if (hasOption(DefaultOptionCreator.OUTLIER_THRESHOLD)) {
       clusterClassificationThreshold = Double.parseDouble(getOption(DefaultOptionCreator.OUTLIER_THRESHOLD));
@@ -142,8 +138,7 @@ public class KMeansDriver extends AbstractJob {
     if (log.isInfoEnabled()) {
       log.info("Input: {} Clusters In: {} Out: {} Distance: {}", input, clustersIn, output,
                measure.getClass().getName());
-      log.info("convergence: {} max Iterations: {} num Reduce Tasks: {} Input Vectors: {}", convergenceDelta,
-          maxIterations, VectorWritable.class.getName());
+      log.info("convergence: {} max Iterations: {}", convergenceDelta, maxIterations);
     }
     Path clustersOut = buildClusters(conf, input, clustersIn, output, measure, maxIterations, delta, runSequential);
     if (runClustering) {
@@ -256,7 +251,7 @@ public class KMeansDriver extends AbstractJob {
       log.info("Input: {} Clusters In: {} Out: {} Distance: {}", input, clustersIn, output, measure);
     }
     ClusterClassifier.writePolicy(new KMeansClusteringPolicy(), clustersIn);
-    ClusterClassificationDriver.run(input, output, new Path(output, PathDirectory.CLUSTERED_POINTS_DIRECTORY),
+    ClusterClassificationDriver.run(conf, input, output, new Path(output, PathDirectory.CLUSTERED_POINTS_DIRECTORY),
         clusterClassificationThreshold, true, runSequential);
   }
   

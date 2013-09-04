@@ -16,12 +16,14 @@ package org.apache.mahout.vectorizer;
  * limitations under the License.
  */
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.common.Pair;
 import org.apache.mahout.common.iterator.sequencefile.PathFilters;
@@ -35,7 +37,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 
 public class HighDFWordsPrunerTest extends MahoutTestCase {
@@ -50,7 +51,7 @@ public class HighDFWordsPrunerTest extends MahoutTestCase {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    conf = new Configuration();
+    conf = getConfiguration();
 
     inputPath = getTestTempFilePath("documents/docs.file");
     FileSystem fs = FileSystem.get(inputPath.toUri(), conf);
@@ -87,11 +88,13 @@ public class HighDFWordsPrunerTest extends MahoutTestCase {
   private void runTest(boolean prune) throws Exception {
     Path outputPath = getTestTempFilePath("output");
 
-    List<String> argList = new LinkedList<String>();
+    List<String> argList = Lists.newLinkedList();
     argList.add("-i");
     argList.add(inputPath.toString());
     argList.add("-o");
     argList.add(outputPath.toString());
+    argList.add("--mapred");
+    argList.add(getTestTempDir("mapred" + Math.random()).getAbsolutePath());
     if (prune) {
       argList.add("-xs");
       argList.add("3"); // we prune all words that are outside 3*sigma
@@ -105,7 +108,7 @@ public class HighDFWordsPrunerTest extends MahoutTestCase {
 
     String[] args = argList.toArray(new String[argList.size()]);
 
-    SparseVectorsFromSequenceFiles.main(args);
+    ToolRunner.run(getConfiguration(), new SparseVectorsFromSequenceFiles(), args);
 
     Path dictionary = new Path(outputPath, "dictionary.file-0");
     Path tfVectors = new Path(outputPath, "tf-vectors");

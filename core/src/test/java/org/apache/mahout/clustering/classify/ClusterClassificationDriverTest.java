@@ -65,7 +65,7 @@ public class ClusterClassificationDriverTest extends MahoutTestCase {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     fs = FileSystem.get(conf);
     firstCluster = Lists.newArrayList();
     secondCluster = Lists.newArrayList();
@@ -92,7 +92,7 @@ public class ClusterClassificationDriverTest extends MahoutTestCase {
     classifiedOutputPath = getTestTempDirPath("classifiedClusters");
     HadoopUtil.delete(conf, classifiedOutputPath);
 
-    conf = new Configuration();
+    conf = getConfiguration();
 
     ClusteringTestUtils.writePointsToFile(points, true,
         new Path(pointsPath, "file1"), fs, conf);
@@ -110,7 +110,7 @@ public class ClusterClassificationDriverTest extends MahoutTestCase {
     clusteringOutputPath = getTestTempDirPath("output");
     classifiedOutputPath = getTestTempDirPath("classify");
 
-    conf = new Configuration();
+    conf = getConfiguration();
 
     ClusteringTestUtils.writePointsToFile(points,
         new Path(pointsPath, "file1"), fs, conf);
@@ -150,12 +150,12 @@ public class ClusterClassificationDriverTest extends MahoutTestCase {
 
   private void runClassificationWithoutOutlierRemoval()
     throws IOException, InterruptedException, ClassNotFoundException {
-    ClusterClassificationDriver.run(pointsPath, clusteringOutputPath, classifiedOutputPath, 0.0, true, true);
+    ClusterClassificationDriver.run(getConfiguration(), pointsPath, clusteringOutputPath, classifiedOutputPath, 0.0, true, true);
   }
 
   private void runClassificationWithOutlierRemoval(boolean runSequential)
     throws IOException, InterruptedException, ClassNotFoundException {
-    ClusterClassificationDriver.run(pointsPath, clusteringOutputPath, classifiedOutputPath, 0.73, true, runSequential);
+    ClusterClassificationDriver.run(getConfiguration(), pointsPath, clusteringOutputPath, classifiedOutputPath, 0.73, true, runSequential);
   }
 
   private void collectVectorsForAssertion() throws IOException {

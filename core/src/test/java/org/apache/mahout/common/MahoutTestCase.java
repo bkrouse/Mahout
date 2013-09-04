@@ -63,6 +63,12 @@ public abstract class MahoutTestCase extends org.apache.mahout.math.MahoutTestCa
     }
     super.tearDown();
   }
+  
+  protected final Configuration getConfiguration() throws IOException {
+	Configuration conf = new Configuration();
+    conf.set("hadoop.tmp.dir", getTestTempDir("hadoop" + Math.random()).getAbsolutePath());
+    return conf;
+  }
 
   protected final Path getTestTempDirPath() throws IOException {
     if (testTempDirPath == null) {
@@ -136,7 +142,7 @@ public abstract class MahoutTestCase extends org.apache.mahout.math.MahoutTestCa
         writer.write('\n');
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
   }
 }

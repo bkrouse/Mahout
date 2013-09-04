@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -76,9 +75,7 @@ public abstract class AbstractClusterWriter implements ClusterWriter {
 
     List<TermIndexWeight> vectorTerms = Lists.newArrayList();
 
-    Iterator<Vector.Element> iter = vector.iterateNonZero();
-    while (iter.hasNext()) {
-      Vector.Element elt = iter.next();
+    for (Vector.Element elt : vector.nonZeroes()) {
       vectorTerms.add(new TermIndexWeight(elt.index(), elt.get()));
     }
 
@@ -90,7 +87,7 @@ public abstract class AbstractClusterWriter implements ClusterWriter {
       }
     });
 
-    Collection<Pair<String, Double>> topTerms = new LinkedList<Pair<String, Double>>();
+    Collection<Pair<String, Double>> topTerms = Lists.newLinkedList();
 
     for (int i = 0; i < vectorTerms.size() && i < numTerms; i++) {
       int index = vectorTerms.get(i).index;
@@ -118,9 +115,7 @@ public abstract class AbstractClusterWriter implements ClusterWriter {
 
     List<TermIndexWeight> vectorTerms = Lists.newArrayList();
 
-    Iterator<Vector.Element> iter = vector.iterateNonZero();
-    while (iter.hasNext()) {
-      Vector.Element elt = iter.next();
+    for (Vector.Element elt : vector.nonZeroes()) {
       vectorTerms.add(new TermIndexWeight(elt.index(), elt.get()));
     }
 
@@ -132,7 +127,7 @@ public abstract class AbstractClusterWriter implements ClusterWriter {
       }
     });
 
-    Collection<Pair<String, Double>> topTerms = new LinkedList<Pair<String, Double>>();
+    Collection<Pair<String, Double>> topTerms = Lists.newLinkedList();
 
     for (int i = 0; i < vectorTerms.size() && i < numTerms; i++) {
       int index = vectorTerms.get(i).index;

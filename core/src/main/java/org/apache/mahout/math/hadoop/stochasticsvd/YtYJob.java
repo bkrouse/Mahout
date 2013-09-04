@@ -16,9 +16,6 @@
  */
 package org.apache.mahout.math.hadoop.stochasticsvd;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -33,12 +30,14 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.mahout.math.DenseVector;
+import org.apache.mahout.math.UpperTriangular;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.VectorWritable;
 
+import java.io.IOException;
+
 /**
  * Job that accumulates Y'Y output
- * 
  */
 public final class YtYJob {
 
@@ -53,7 +52,7 @@ public final class YtYJob {
   }
 
   public static class YtYMapper extends
-      Mapper<Writable, VectorWritable, IntWritable, VectorWritable> {
+    Mapper<Writable, VectorWritable, IntWritable, VectorWritable> {
 
     private int kp;
     private Omega omega;
@@ -115,11 +114,9 @@ public final class YtYJob {
          * are creating some short-lived references) here is that we obviously
          * do two times more iterations then necessary if y row is pretty dense.
          */
-        for (Iterator<Vector.Element> iterI = yRow.iterateNonZero(); iterI.hasNext();) {
-          Vector.Element eli = iterI.next();
+        for (Vector.Element eli : yRow.nonZeroes()) {
           int i = eli.index();
-          for (Iterator<Vector.Element> iterJ = yRow.iterateNonZero(); iterJ.hasNext();) {
-            Vector.Element elj = iterJ.next();
+          for (Vector.Element elj : yRow.nonZeroes()) {
             int j = elj.index();
             if (j < i) {
               continue;
@@ -134,13 +131,13 @@ public final class YtYJob {
     protected void cleanup(Context context) throws IOException,
       InterruptedException {
       context.write(new IntWritable(context.getTaskAttemptID().getTaskID()
-                                           .getId()),
+                                      .getId()),
                     new VectorWritable(new DenseVector(mYtY.getData())));
     }
   }
 
   public static class YtYReducer extends
-      Reducer<IntWritable, VectorWritable, IntWritable, VectorWritable> {
+    Reducer<IntWritable, VectorWritable, IntWritable, VectorWritable> {
     private final VectorWritable accum = new VectorWritable();
     private DenseVector acc;
 

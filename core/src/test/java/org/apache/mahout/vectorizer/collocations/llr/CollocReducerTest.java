@@ -19,8 +19,8 @@ package org.apache.mahout.vectorizer.collocations.llr;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedList;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.mahout.common.MahoutTestCase;
@@ -75,7 +75,7 @@ public final class CollocReducerTest extends MahoutTestCase {
     for (Gram[] ii : input) {
       key.set(ii[0], empty);
 
-      Collection<Gram> vv = new LinkedList<Gram>();
+      Collection<Gram> vv = Lists.newLinkedList();
       vv.addAll(Arrays.asList(ii));
       c.reduce(key, vv, context);
     }

@@ -24,7 +24,11 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
@@ -32,6 +36,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.Writable;
@@ -266,32 +271,128 @@ public final class HadoopUtil {
     DistributedCache.setCacheFiles(new URI[]{fileToCache.toUri()}, conf);
   }
 
-  public static Path cachedFile(Configuration conf) throws IOException {
-    return new Path(DistributedCache.getCacheFiles(conf)[0].getPath());
+  /**
+   * Return the first cached file in the list, else null if thre are no cached files.
+   * @param conf - MapReduce Configuration
+   * @return Path of Cached file
+   * @throws IOException - IO Exception
+   */
+  public static Path getSingleCachedFile(Configuration conf) throws IOException {
+    return getCachedFiles(conf)[0];
   }
 
-  public static void setSerializations(Configuration conf) {
-    conf.set("io.serializations", "org.apache.hadoop.io.serializer.JavaSerialization,"
+  /**
+   * Retrieves paths to cached files.
+   * @param conf - MapReduce Configuration
+   * @return Path[] of Cached Files
+   * @throws IOException - IO Exception
+   * @throws IllegalStateException if no cache files are found
+   */
+  public static Path[] getCachedFiles(Configuration conf) throws IOException {
+    LocalFileSystem localFs = FileSystem.getLocal(conf);
+    Path[] cacheFiles = DistributedCache.getLocalCacheFiles(conf);
+
+    URI[] fallbackFiles = DistributedCache.getCacheFiles(conf);
+
+    // fallback for local execution
+    if (cacheFiles == null) {
+
+      Preconditions.checkState(fallbackFiles != null, "Unable to find cached files!");
+
+      cacheFiles = new Path[fallbackFiles.length];
+      for (int n = 0; n < fallbackFiles.length; n++) {
+        cacheFiles[n] = new Path(fallbackFiles[n].getPath());
+      }
+    } else {
+
+      for (int n = 0; n < cacheFiles.length; n++) {
+        cacheFiles[n] = localFs.makeQualified(cacheFiles[n]);
+        // fallback for local execution
+        if (!localFs.exists(cacheFiles[n])) {
+          cacheFiles[n] = new Path(fallbackFiles[n].getPath());
+        }
+      }
+    }
+
+    Preconditions.checkState(cacheFiles.length > 0, "Unable to find cached files!");
+
+    return cacheFiles;
+  }
+
+  public static void setSerializations(Configuration configuration) {
+    configuration.set("io.serializations", "org.apache.hadoop.io.serializer.JavaSerialization,"
         + "org.apache.hadoop.io.serializer.WritableSerialization");
   }
 
-  public static void writeInt(int value, Path path, Configuration conf) throws IOException {
-    FileSystem fs = FileSystem.get(path.toUri(), conf);
+  public static void writeInt(int value, Path path, Configuration configuration) throws IOException {
+    FileSystem fs = FileSystem.get(path.toUri(), configuration);
     FSDataOutputStream out = fs.create(path);
     try {
       out.writeInt(value);
     } finally {
-      Closeables.closeQuietly(out);
+      Closeables.close(out, false);
     }
   }
 
-  public static int readInt(Path path, Configuration conf) throws IOException {
-    FileSystem fs = FileSystem.get(path.toUri(), conf);
+  public static int readInt(Path path, Configuration configuration) throws IOException {
+    FileSystem fs = FileSystem.get(path.toUri(), configuration);
     FSDataInputStream in = fs.open(path);
     try {
       return in.readInt();
     } finally {
-      Closeables.closeQuietly(in);
+      Closeables.close(in, true);
     }
+  }
+
+  /**
+   * Builds a comma-separated list of input splits
+   * @param fs - File System
+   * @param fileStatus - File Status
+   * @return list of directories as a comma-separated String
+   * @throws IOException - IO Exception
+   */
+  public static String buildDirList(FileSystem fs, FileStatus fileStatus) throws IOException {
+    boolean bContainsFiles = false;
+    List<String> directoriesList = Lists.newArrayList();
+    for (FileStatus childFileStatus : fs.listStatus(fileStatus.getPath())) {
+      if (childFileStatus.isDir()) {
+        String subDirectoryList = buildDirList(fs, childFileStatus);
+        directoriesList.add(subDirectoryList);
+      } else {
+        bContainsFiles = true;
+      }
+    }
+
+    if (bContainsFiles) {
+      directoriesList.add(fileStatus.getPath().toUri().getPath());
+    }
+    return Joiner.on(',').skipNulls().join(directoriesList.iterator());
+  }
+
+  /**
+   *
+   * @param configuration  -  configuration
+   * @param filePath - Input File Path
+   * @return relative file Path
+   * @throws IOException - IO Exception
+   */
+  public static String calcRelativeFilePath(Configuration configuration, Path filePath) throws IOException {
+    FileSystem fs = filePath.getFileSystem(configuration);
+    FileStatus fst = fs.getFileStatus(filePath);
+    String currentPath = fst.getPath().toString().replaceFirst("file:", "");
+
+    String basePath = configuration.get("baseinputpath");
+    if (!basePath.endsWith("/")) {
+      basePath += "/";
+    }
+    basePath = basePath.replaceFirst("file:", "");
+    String[] parts = currentPath.split(basePath);
+
+    if (parts.length == 2) {
+      return parts[1];
+    } else if (parts.length == 1) {
+      return parts[0];
+    }
+    return currentPath;
   }
 }

@@ -19,6 +19,7 @@ package org.apache.mahout.utils.vectors;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -31,6 +32,7 @@ import org.apache.mahout.common.iterator.sequencefile.PathType;
 import org.apache.mahout.common.iterator.sequencefile.SequenceFileDirIterable;
 import org.apache.mahout.math.NamedVector;
 import org.apache.mahout.math.Vector;
+import org.apache.mahout.math.Vector.Element;
 import org.apache.mahout.math.map.OpenObjectIntHashMap;
 
 import java.io.File;
@@ -44,6 +46,7 @@ import java.util.List;
 import java.util.Comparator;
 import java.util.regex.Pattern;
 
+/** Static utility methods related to vectors. */
 public final class VectorHelper {
 
   private static final Pattern TAB_PATTERN = Pattern.compile("\t");
@@ -77,10 +80,19 @@ public final class VectorHelper {
   }
 
   public static List<Pair<Integer, Double>> topEntries(Vector vector, int maxEntries) {
+
+    // Get the size of nonZero elements in the input vector
+    int sizeOfNonZeroElementsInVector = Iterables.size(vector.nonZeroes());
+
+    // If the sizeOfNonZeroElementsInVector < maxEntries then set maxEntries = sizeOfNonZeroElementsInVector
+    // otherwise the call to queue.pop() returns a Pair(null, null) and the subsequent call
+    // to pair.getFirst() throws a NullPointerException
+    if (sizeOfNonZeroElementsInVector < maxEntries) {
+      maxEntries = sizeOfNonZeroElementsInVector;
+    }
+
     PriorityQueue<Pair<Integer, Double>> queue = new TDoublePQ<Integer>(-1, maxEntries);
-    Iterator<Vector.Element> it = vector.iterateNonZero();
-    while (it.hasNext()) {
-      Vector.Element e = it.next();
+    for (Element e : vector.nonZeroes()) {
       queue.insertWithOverflow(Pair.of(e.index(), e.get()));
     }
     List<Pair<Integer, Double>> entries = Lists.newArrayList();
@@ -101,7 +113,7 @@ public final class VectorHelper {
 
   public static List<Pair<Integer, Double>> firstEntries(Vector vector, int maxEntries) {
     List<Pair<Integer, Double>> entries = Lists.newArrayList();
-    Iterator<Vector.Element> it = vector.iterateNonZero();
+    Iterator<Vector.Element> it = vector.nonZeroes().iterator();
     int i = 0;
     while (it.hasNext() && i++ < maxEntries) {
       Vector.Element e = it.next();
@@ -143,7 +155,7 @@ public final class VectorHelper {
     if (namesAsComments && vector instanceof NamedVector) {
       bldr.append('#').append(((NamedVector) vector).getName()).append('\n');
     }
-    Iterator<Vector.Element> iter = vector.iterator();
+    Iterator<Vector.Element> iter = vector.all().iterator();
     boolean first = true;
     while (iter.hasNext()) {
       if (first) {
@@ -165,7 +177,12 @@ public final class VectorHelper {
    * </pre>
    */
   public static String[] loadTermDictionary(File dictFile) throws IOException {
-    return loadTermDictionary(new FileInputStream(dictFile));
+    InputStream in = new FileInputStream(dictFile);
+    try {
+      return loadTermDictionary(in);
+    } finally {
+      in.close();
+    }
   }
 
   /**

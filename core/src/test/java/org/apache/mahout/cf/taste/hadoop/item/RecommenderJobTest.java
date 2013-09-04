@@ -21,11 +21,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
@@ -148,7 +148,7 @@ public class RecommenderJobTest extends TasteTestCase {
 
     EasyMock.replay(context, userCounters);
 
-    Collection<VarLongWritable> varLongWritables = new LinkedList<VarLongWritable>();
+    Collection<VarLongWritable> varLongWritables = Lists.newLinkedList();
     varLongWritables.add(new EntityPrefWritable(34L, 1.0f));
     varLongWritables.add(new EntityPrefWritable(56L, 2.0f));
 
@@ -653,7 +653,7 @@ public class RecommenderJobTest extends TasteTestCase {
       public boolean matches(Object argument) {
         if (argument instanceof RecommendedItemsWritable) {
           RecommendedItemsWritable recommendedItemsWritable = (RecommendedItemsWritable) argument;
-          List<RecommendedItem> expectedItems = new LinkedList<RecommendedItem>(Arrays.asList(items));
+          List<RecommendedItem> expectedItems = Arrays.asList(items);
           return expectedItems.equals(recommendedItemsWritable.getRecommendedItems());
         }
         return false;
@@ -724,7 +724,7 @@ public class RecommenderJobTest extends TasteTestCase {
 
     RecommenderJob recommenderJob = new RecommenderJob();
 
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set("mapred.input.dir", inputFile.getAbsolutePath());
     conf.set("mapred.output.dir", outputDir.getAbsolutePath());
     conf.setBoolean("mapred.output.compress", false);
@@ -810,7 +810,7 @@ public class RecommenderJobTest extends TasteTestCase {
 
     RecommenderJob recommenderJob = new RecommenderJob();
 
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     conf.set("mapred.input.dir", inputFile.getAbsolutePath());
     conf.set("mapred.output.dir", outputDir.getAbsolutePath());
     conf.setBoolean("mapred.output.compress", false);
@@ -871,7 +871,7 @@ public class RecommenderJobTest extends TasteTestCase {
 
      RecommenderJob recommenderJob = new RecommenderJob();
 
-     Configuration conf = new Configuration();
+     Configuration conf = getConfiguration();
      conf.set("mapred.input.dir", inputFile.getAbsolutePath());
      conf.set("mapred.output.dir", outputDir.getAbsolutePath());
      conf.setBoolean("mapred.output.compress", false);
@@ -913,7 +913,7 @@ public class RecommenderJobTest extends TasteTestCase {
       String[] tokens = keyValue[1].replaceAll("\\[", "")
           .replaceAll("\\]", "").split(",");
 
-      List<RecommendedItem> items = new LinkedList<RecommendedItem>();
+      List<RecommendedItem> items = Lists.newLinkedList();
       for (String token : tokens) {
         String[] itemTokens = token.split(":");
         long itemID = Long.parseLong(itemTokens[0]);

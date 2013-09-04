@@ -277,9 +277,14 @@ public class SplitInput extends AbstractJob {
    */
   public void splitDirectory(Path inputDir) throws IOException, ClassNotFoundException, InterruptedException {
     Configuration conf = getConf();
-    if (conf == null) {
-      conf = new Configuration();
-    }
+    splitDirectory(conf, inputDir);
+  }
+
+  /*
+   * See also splitDirectory(Path inputDir)
+   * */
+  public void splitDirectory(Configuration conf, Path inputDir)
+    throws IOException, ClassNotFoundException, InterruptedException {
     FileSystem fs = inputDir.getFileSystem(conf);
     if (fs.getFileStatus(inputDir) == null) {
       throw new IOException(inputDir + " does not exist");
@@ -289,8 +294,8 @@ public class SplitInput extends AbstractJob {
     }
 
     if (useMapRed) {
-      SplitInputJob.run(new Configuration(), inputDir, mapRedOutputDirectory,
-              keepPct, testRandomSelectionPct);
+      SplitInputJob.run(conf, inputDir, mapRedOutputDirectory,
+            keepPct, testRandomSelectionPct);
     } else {
       // input dir contains one file per category.
       FileStatus[] fileStats = fs.listStatus(inputDir, PathFilters.logsCRCFilter());
@@ -302,16 +307,12 @@ public class SplitInput extends AbstractJob {
     }
   }
 
-
   /**
    * Perform a split on the specified input file. Results will be written to files of the same name in the specified
    * training and test output directories. The {@link #validate()} method is called prior to executing the split.
    */
   public void splitFile(Path inputFile) throws IOException {
     Configuration conf = getConf();
-    if (conf == null) {
-      conf = new Configuration();
-    }
     FileSystem fs = inputFile.getFileSystem(conf);
     if (fs.getFileStatus(inputFile) == null) {
       throw new IOException(inputFile + " does not exist");
@@ -412,9 +413,9 @@ public class SplitInput extends AbstractJob {
         }
 
       } finally {
-        Closeables.closeQuietly(reader);
-        Closeables.closeQuietly(trainingWriter);
-        Closeables.closeQuietly(testWriter);
+        Closeables.close(reader, true);
+        Closeables.close(trainingWriter, false);
+        Closeables.close(testWriter, false);
       }
     } else {
       SequenceFileIterator<Writable, Writable> iterator =
@@ -450,9 +451,9 @@ public class SplitInput extends AbstractJob {
         }
 
       } finally {
-        Closeables.closeQuietly(iterator);
-        Closeables.closeQuietly(trainingWriter);
-        Closeables.closeQuietly(testWriter);
+        Closeables.close(iterator, true);
+        Closeables.close(trainingWriter, false);
+        Closeables.close(testWriter, false);
       }
     }
     log.info("file: {}, input: {} train: {}, test: {} starting at {}",
@@ -649,9 +650,6 @@ public class SplitInput extends AbstractJob {
 
     if (!useMapRed) {
       Configuration conf = getConf();
-      if (conf == null) {
-        conf = new Configuration();
-      }
       FileSystem fs = trainingOutputDirectory.getFileSystem(conf);
       FileStatus trainingOutputDirStatus = fs.getFileStatus(trainingOutputDirectory);
       Preconditions.checkArgument(trainingOutputDirStatus != null && trainingOutputDirStatus.isDir(),
@@ -678,7 +676,7 @@ public class SplitInput extends AbstractJob {
         lineCount++;
       }
     } finally {
-      Closeables.closeQuietly(reader);
+      Closeables.close(reader, true);
     }
 
     return lineCount;

@@ -17,6 +17,9 @@
 
 package org.apache.mahout.math.hadoop.decomposer;
 
+import java.io.IOException;
+import java.util.Map;
+
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -34,9 +37,7 @@ import org.apache.mahout.math.decomposer.lanczos.LanczosState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Map;
-
+@Deprecated
 public class HdfsBackedLanczosState extends LanczosState implements Configurable {
 
   private static final Logger log = LoggerFactory.getLogger(HdfsBackedLanczosState.class);
@@ -68,7 +69,7 @@ public class HdfsBackedLanczosState extends LanczosState implements Configurable
       setupDirs();
       updateHdfsState();
     } catch (IOException e) {
-      log.error("Could not retrieve filesystem: ", conf, e);
+      log.error("Could not retrieve filesystem: {}", conf, e);
     }
   }
 
@@ -148,7 +149,7 @@ public class HdfsBackedLanczosState extends LanczosState implements Configurable
           IntWritable.class, VectorWritable.class);
       writer.append(new IntWritable(key), new VectorWritable(vector));
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
   }
 
@@ -174,7 +175,7 @@ public class HdfsBackedLanczosState extends LanczosState implements Configurable
         Vector v = fetchVector(new Path(basisPath, BASIS_PREFIX + '_' + i), i);
         basis.put(i, v);
       } catch (IOException e) {
-        log.error("Could not load basis vector: ", i, e);
+        log.error("Could not load basis vector: {}", i, e);
       }
     }
     return super.getBasisVector(i);
@@ -187,7 +188,7 @@ public class HdfsBackedLanczosState extends LanczosState implements Configurable
         Vector v = fetchVector(new Path(singularVectorPath, BASIS_PREFIX + '_' + i), i);
         singularVectors.put(i, v);
       } catch (IOException e) {
-        log.error("Could not load singular vector: ", i, e);
+        log.error("Could not load singular vector: {}", i, e);
       }
     }
     return super.getRightSingularVector(i);

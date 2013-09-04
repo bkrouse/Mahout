@@ -21,9 +21,9 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Deque;
-import java.util.LinkedList;
 import java.util.Random;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -78,7 +78,7 @@ public class LocalSSVDSolverSparseSequentialTest extends MahoutTestCase {
     // conf.set("mapred.job.tracker","localhost:11011");
     // conf.set("fs.default.name","hdfs://localhost:11010/");
 
-    Deque<Closeable> closeables = new LinkedList<Closeable>();
+    Deque<Closeable> closeables = Lists.newLinkedList();;
     Random rnd = RandomUtils.getRandom();
 
     File tmpDir = getTestTempDir("svdtmp");
@@ -115,7 +115,7 @@ public class LocalSSVDSolverSparseSequentialTest extends MahoutTestCase {
       w.append(roww, vw);
     }
     closeables.remove(w);
-    Closeables.close(w, true);
+    Closeables.close(w, false);
 
     FileSystem fs = FileSystem.get(aLocPath.toUri(), conf);
 
@@ -190,7 +190,7 @@ public class LocalSSVDSolverSparseSequentialTest extends MahoutTestCase {
 
   static void dumpSv(Vector s) {
     System.out.printf("svs: ");
-    for (Vector.Element el : s) {
+    for (Vector.Element el : s.all()) {
       System.out.printf("%f  ", el.get());
     }
     System.out.println();

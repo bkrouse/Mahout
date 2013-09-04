@@ -20,7 +20,6 @@ package org.apache.mahout.math.hadoop;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.util.Iterator;
 import java.util.Locale;
 
 import com.google.common.io.Closeables;
@@ -37,10 +36,11 @@ import org.apache.mahout.math.DenseVector;
 import org.apache.mahout.math.Matrix;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.Vector;
+import org.apache.mahout.math.Vector.Element;
 import org.apache.mahout.math.VectorWritable;
-import org.apache.mahout.math.hadoop.DistributedRowMatrix.MatrixEntryWritable;
-import org.easymock.IArgumentMatcher;
+import org.apache.mahout.math.map.OpenIntObjectHashMap;
 import org.easymock.EasyMock;
+import org.easymock.IArgumentMatcher;
 import org.junit.Assert;
 
 /**
@@ -49,43 +49,6 @@ import org.junit.Assert;
 public final class MathHelper {
 
   private MathHelper() {}
-
-  /**
-   * applies an {@link IArgumentMatcher} to {@link MatrixEntryWritable}s
-   */
-  public static MatrixEntryWritable matrixEntryMatches(final int row, final int col, final double value) {
-    EasyMock.reportMatcher(new IArgumentMatcher() {
-      @Override
-      public boolean matches(Object argument) {
-        if (argument instanceof MatrixEntryWritable) {
-          MatrixEntryWritable entry = (MatrixEntryWritable) argument;
-          return row == entry.getRow()
-              && col == entry.getCol()
-              && Math.abs(value - entry.getVal()) <= MahoutTestCase.EPSILON;
-        }
-        return false;
-      }
-
-      @Override
-      public void appendTo(StringBuffer buffer) {
-        buffer.append("MatrixEntry[row=").append(row)
-            .append(",col=").append(col)
-            .append(",value=").append(value).append(']');
-      }
-    });
-    return null;
-  }
-
-  /**
-   * convenience method to create a {@link MatrixEntryWritable}
-   */
-  public static MatrixEntryWritable matrixEntry(int row, int col, double value) {
-    MatrixEntryWritable entry = new MatrixEntryWritable();
-    entry.setRow(row);
-    entry.setCol(col);
-    entry.setVal(value);
-    return entry;
-  }
 
   /**
    * convenience method to create a {@link Vector.Element}
@@ -159,9 +122,7 @@ public final class MathHelper {
    */
   public static int numberOfNoNZeroNonNaNElements(Vector vector) {
     int elementsInVector = 0;
-    Iterator<Vector.Element> vectorIterator = vector.iterateNonZero();
-    while (vectorIterator.hasNext()) {
-      Vector.Element currentElement = vectorIterator.next();
+    for (Element currentElement : vector.nonZeroes()) {
       if (!Double.isNaN(currentElement.get())) {
         elementsInVector++;
       }      
@@ -181,9 +142,7 @@ public final class MathHelper {
       VectorWritable value = record.getSecond();
       readOneRow = true;
       int row = key.get();
-      Iterator<Vector.Element> elementsIterator = value.get().iterateNonZero();
-      while (elementsIterator.hasNext()) {
-        Vector.Element element = elementsIterator.next();
+      for (Element element : value.get().nonZeroes()) {
         matrix.set(row, element.index(), element.get());
       }
     }
@@ -191,6 +150,24 @@ public final class MathHelper {
       throw new IllegalStateException("Not a single row read!");
     }
     return matrix;
+  }
+
+  /**
+   * read a {@link Matrix} from a SequenceFile<IntWritable,VectorWritable>
+   */
+  public static OpenIntObjectHashMap<Vector> readMatrixRows(Configuration conf, Path path) {
+    boolean readOneRow = false;
+    OpenIntObjectHashMap<Vector> rows = new OpenIntObjectHashMap<Vector>();
+    for (Pair<IntWritable,VectorWritable> record :
+        new SequenceFileIterable<IntWritable,VectorWritable>(path, true, conf)) {
+      IntWritable key = record.getFirst();
+      readOneRow = true;
+      rows.put(key.get(), record.getSecond().get());
+    }
+    if (!readOneRow) {
+      throw new IllegalStateException("Not a single row read!");
+    }
+    return rows;
   }
 
   /**
@@ -209,7 +186,7 @@ public final class MathHelper {
         writer.append(new IntWritable(n), new VectorWritable(v));
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
   }
 
@@ -233,7 +210,7 @@ public final class MathHelper {
 
     StringBuilder buffer = new StringBuilder("[");
     String separator = "";
-    for (Vector.Element e : v) {
+    for (Vector.Element e : v.all()) {
       buffer.append(separator);
       if (Double.isNaN(e.get())) {
         buffer.append("  -  ");

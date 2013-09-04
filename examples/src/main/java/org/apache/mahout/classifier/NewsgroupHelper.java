@@ -60,7 +60,7 @@ public final class NewsgroupHelper {
   private static final long WEEK = 7 * 24 * 3600;
   
   private final Random rand = RandomUtils.getRandom();  
-  private final Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
+  private final Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_43);
   private final FeatureVectorEncoder encoder = new StaticWordValueEncoder("body");
   private final FeatureVectorEncoder bias = new ConstantValueEncoder("Intercept");
   
@@ -102,7 +102,7 @@ public final class NewsgroupHelper {
         countWords(analyzer, words, reader, overallCounts);
       }
     } finally {
-      Closeables.closeQuietly(reader);
+      Closeables.close(reader, true);
     }
 
     Vector v = new RandomAccessSparseVector(FEATURES);
@@ -127,6 +127,6 @@ public final class NewsgroupHelper {
     }
     overallCounts.addAll(words);
     ts.end();
-    Closeables.closeQuietly(ts);
+    Closeables.close(ts, true);
   }
 }

@@ -30,6 +30,7 @@ import org.junit.Before;
 import java.io.File;
 import java.io.IOException;
 
+@Deprecated
 public final class TestDistributedLanczosSolver extends MahoutTestCase {
 
   private int counter = 0;
@@ -67,7 +68,7 @@ public final class TestDistributedLanczosSolver extends MahoutTestCase {
       int desiredRank, boolean hdfsBackedState)
       throws IOException {
     DistributedRowMatrix corpus = getCorpus(symmetric);
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     corpus.setConf(conf);
     DistributedLanczosSolver solver = new DistributedLanczosSolver();
     Vector intitialVector = DistributedLanczosSolver.getInitialVector(corpus);
@@ -92,7 +93,7 @@ public final class TestDistributedLanczosSolver extends MahoutTestCase {
 
   public void doTestResumeIteration(boolean symmetric) throws IOException {
     DistributedRowMatrix corpus = getCorpus(symmetric);
-    Configuration conf = new Configuration();
+    Configuration conf = getConfiguration();
     corpus.setConf(conf);
     DistributedLanczosSolver solver = new DistributedLanczosSolver();
     int rank = 10;

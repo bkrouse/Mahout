@@ -31,6 +31,7 @@ import org.apache.mahout.common.iterator.FileLineIterable;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.VarLongWritable;
 import org.apache.mahout.math.Vector;
+import org.apache.mahout.math.Vector.Element;
 import org.apache.mahout.math.function.Functions;
 import org.apache.mahout.math.map.OpenIntLongHashMap;
 
@@ -68,6 +69,8 @@ public final class AggregateAndRecommendReducer extends
   private FastIDSet itemsToRecommendFor;
   private OpenIntLongHashMap indexItemIDMap;
 
+  private final RecommendedItemsWritable recommendedItems = new RecommendedItemsWritable();
+
   private static final float BOOLEAN_PREF_VALUE = 1.0f;
 
   @Override
@@ -75,7 +78,7 @@ public final class AggregateAndRecommendReducer extends
     Configuration conf = context.getConfiguration();
     recommendationsPerUser = conf.getInt(NUM_RECOMMENDATIONS, DEFAULT_NUM_RECOMMENDATIONS);
     booleanData = conf.getBoolean(RecommenderJob.BOOLEAN_DATA, false);
-    indexItemIDMap = TasteHadoopUtils.readItemIDIndexMap(conf.get(ITEMID_INDEX_PATH), conf);
+    indexItemIDMap = TasteHadoopUtils.readIDIndexMap(conf.get(ITEMID_INDEX_PATH), conf);
 
     String itemFilePathString = conf.get(ITEMS_FILE);
     if (itemFilePathString != null) {
@@ -129,9 +132,8 @@ public final class AggregateAndRecommendReducer extends
       Vector simColumn = prefAndSimilarityColumn.getSimilarityColumn();
       float prefValue = prefAndSimilarityColumn.getPrefValue();
       /* count the number of items used for each prediction */
-      Iterator<Vector.Element> usedItemsIterator = simColumn.iterateNonZero();
-      while (usedItemsIterator.hasNext()) {
-        int itemIDIndex = usedItemsIterator.next().index();
+      for (Element e : simColumn.nonZeroes()) {
+        int itemIDIndex = e.index();
         numberOfSimilarItemsUsed.setQuick(itemIDIndex, numberOfSimilarItemsUsed.getQuick(itemIDIndex) + 1);
       }
 
@@ -160,9 +162,7 @@ public final class AggregateAndRecommendReducer extends
     }
 
     Vector recommendationVector = new RandomAccessSparseVector(Integer.MAX_VALUE, 100);
-    Iterator<Vector.Element> iterator = numerators.iterateNonZero();
-    while (iterator.hasNext()) {
-      Vector.Element element = iterator.next();
+    for (Element element : numerators.nonZeroes()) {
       int itemIDIndex = element.index();
       /* preference estimations must be based on at least 2 datapoints */
       if (numberOfSimilarItemsUsed.getQuick(itemIDIndex) > 1) {
@@ -182,9 +182,7 @@ public final class AggregateAndRecommendReducer extends
 
     TopItemsQueue topKItems = new TopItemsQueue(recommendationsPerUser);
 
-    Iterator<Vector.Element> recommendationVectorIterator = recommendationVector.iterateNonZero();
-    while (recommendationVectorIterator.hasNext()) {
-      Vector.Element element = recommendationVectorIterator.next();
+    for (Element element : recommendationVector.nonZeroes()) {
       int index = element.index();
       long itemID;
       if (indexItemIDMap != null && !indexItemIDMap.isEmpty()) {
@@ -207,7 +205,8 @@ public final class AggregateAndRecommendReducer extends
 
     List<RecommendedItem> topItems = topKItems.getTopItems();
     if (!topItems.isEmpty()) {
-      context.write(userID, new RecommendedItemsWritable(topItems));
+      recommendedItems.set(topItems);
+      context.write(userID, recommendedItems);
     }
   }
 

@@ -1,31 +1,25 @@
 .classpath
 .project
+.settings/
 .idea/*
 *.iml
-target/*
-core/target/*
-math/target/*
-examples/target/*
+target/
 examples/bin/tmp
 output
-buildtools/target/*
-integration/target/*
-.settings/
-buildtools/.settings/
-core/.settings/
 core/build/
 core/input/
 core/output/
 core/testdata/
 core/temp
 temp
-distribution/.settings/
-examples/.settings/
 foo
 math-tests/
+<<<<<<< HEAD
 math/.settings/
 integration/.settings/
 *.props
 .pmd
 .ruleset
 .checkstyle
+=======
+>>>>>>> upstream/trunk

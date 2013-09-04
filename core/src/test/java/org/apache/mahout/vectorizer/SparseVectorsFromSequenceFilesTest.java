@@ -18,15 +18,16 @@
 package org.apache.mahout.vectorizer;
 
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.common.iterator.sequencefile.PathFilters;
 import org.apache.mahout.common.iterator.sequencefile.PathType;
@@ -43,7 +44,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
   private Path inputPath;
 
   private void setupDocs() throws IOException {
-    conf = new Configuration();
+    conf = getConfiguration();
 
     inputPath = getTestTempFilePath("documents/docs.file");
     FileSystem fs = FileSystem.get(inputPath.toUri(), conf);
@@ -57,7 +58,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
         writer.append(new Text("Document::ID::" + i), new Text(gen.getRandomDocument()));
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
   }
 
@@ -88,8 +89,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
 
   @Test
   public void testPruning() throws Exception {
-    conf = new Configuration();
-
+    conf = getConfiguration();
     inputPath = getTestTempFilePath("documents/docs.file");
     FileSystem fs = FileSystem.get(inputPath.toUri(), conf);
 
@@ -102,7 +102,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
         writer.append(new Text("Document::ID::" + i), new Text(docs[i]));
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
     Path outPath = runTest(false, false, false, 2, docs.length);
     Path tfidfVectors = new Path(outPath, "tfidf-vectors");
@@ -126,7 +126,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
 
   @Test
   public void testPruningTF() throws Exception {
-    conf = new Configuration();
+    conf = getConfiguration();
     FileSystem fs = FileSystem.get(conf);
 
     inputPath = getTestTempFilePath("documents/docs.file");
@@ -139,7 +139,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
         writer.append(new Text("Document::ID::" + i), new Text(docs[i]));
       }
     } finally {
-      Closeables.closeQuietly(writer);
+      Closeables.close(writer, false);
     }
     Path outPath = runTest(true, false, false, 2, docs.length);
     Path tfVectors = new Path(outPath, "tf-vectors");
@@ -164,8 +164,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
   private Path runTest(boolean tfWeighting, boolean sequential, boolean named, double maxDFSigma, int numDocs) throws Exception {
     Path outputPath = getTestTempFilePath("output");
 
-    
-    List<String> argList = new LinkedList<String>();
+    List<String> argList = Lists.newLinkedList();
     argList.add("-i");
     argList.add(inputPath.toString());
     argList.add("-o");
@@ -188,7 +187,7 @@ public class SparseVectorsFromSequenceFilesTest extends MahoutTestCase {
     }
     String[] args = argList.toArray(new String[argList.size()]);
     
-    SparseVectorsFromSequenceFiles.main(args);
+    ToolRunner.run(getConfiguration(), new SparseVectorsFromSequenceFiles(), args);
 
     Path tfVectors = new Path(outputPath, "tf-vectors");
     Path tfidfVectors = new Path(outputPath, "tfidf-vectors");
